@@ -1,0 +1,6 @@
+[package]
+name = "sgb"
+version = "0.1.0"
+authors = ["Jeremy Cochoy <jeremy.cochoy@gmail.com>"]
+
+[dependencies]
