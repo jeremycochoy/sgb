@@ -1,5 +1,7 @@
+use tools::*;
+
 #[derive(PartialEq, Eq, Debug)]
-struct Gpu {
+pub struct Gpu {
         vram : Vec<u8>
 }
 
