@@ -23,7 +23,8 @@ pub struct Mmu {
     // FFFF         Interrupt Enable Register
     ier   : u8,
     // When true, reading below 0x100 access the bios.
-    // Otherwise, it reads from the _rom field.
+    // Once the booting sequence is finished, the value is
+    // turned to false. Then, rading below 0x100 read bytes from the rom field.
     bios_enabled : bool,
     // The gpu data
     gpu   : Gpu,
