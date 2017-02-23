@@ -5,3 +5,4 @@ pub mod gpu;
 pub mod cartridge;
 
 pub use tools::*;
+pub use mmu::*;

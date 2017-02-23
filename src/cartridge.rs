@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::{Read, Result, Error, ErrorKind};
+use mmu::*;
+
 // Game boy color flag
 pub enum CGBFlag {
     CGBOnly,
@@ -103,10 +107,29 @@ pub fn get_cartridge_type(byte : u8) -> Option<CartridgeType> {
                 0xFD => return Some(CartridgeType::Tama5),
                 0xFE => return Some(CartridgeType::HuC3),
                 0xFF => return Some(CartridgeType::HuC1),
-                _ => (),
+                _ => return None,
             },
         _ => panic!("Default cartridge should be of type CartridgeType::Cartridge"),
     }
     Some(def)
 }
 
+pub fn mmu_from_rom_file(filename : String) -> Result<Mmu> {
+    let mut file = try!(File::open(filename));
+
+    let mut contents : Vec<u8> = Vec::new();
+
+    let number_of_bytes = try!(file.read_to_end(&mut contents));
+
+    match number_of_bytes {
+        0x8000 => {
+            let mmu = Mmu {
+                rom : contents[0x0000..0x4000].to_vec(),
+                srom : contents[0x4000..0x8000].to_vec(),
+                .. Default::default()
+            };
+            return Ok(mmu);
+        }
+        _ => return Err(Error::new(ErrorKind::Other, "Wrong file size"))
+    }
+}

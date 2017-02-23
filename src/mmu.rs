@@ -5,29 +5,29 @@ use gpu::*;
 // The MMU (memory)
 pub struct Mmu {
     // GB Bios
-    bios  : Vec<u8>,
+    pub bios  : Vec<u8>,
     // 0000-3FFF    16KB ROM Bank 00
-    rom   : Vec<u8>,
+    pub rom   : Vec<u8>,
     // 4000-7FFF    16KB ROM Bank 01
-    srom  : Vec<u8>,
+    pub srom  : Vec<u8>,
     // A000-BFFF    8KB External RAM
-    eram  : Vec<u8>,
+    pub eram  : Vec<u8>,
     // C000-CFFF    4KB Work RAM Bank 0 (WRAM)
-    wram  : Vec<u8>,
+    pub wram  : Vec<u8>,
     // D000-DFFF    4KB Work RAM Bank 1 (WRAM)
-    swram : Vec<u8>,
+    pub swram : Vec<u8>,
     // FE00-FE9F    Sprite Attribute Table (OAM)
-    oam   : Vec<u8>,
+    pub oam   : Vec<u8>,
     // FF80-FFFE    High RAM (HRAM)
-    hram  : Vec<u8>,
+    pub hram  : Vec<u8>,
     // FFFF         Interrupt Enable Register
-    ier   : u8,
+    pub ier   : u8,
     // When true, reading below 0x100 access the bios.
     // Once the booting sequence is finished, the value is
     // turned to false. Then, rading below 0x100 read bytes from the rom field.
-    bios_enabled : bool,
+    pub bios_enabled : bool,
     // The gpu data
-    gpu   : Gpu,
+    pub gpu   : Gpu,
 }
 
 impl Default for Mmu {
