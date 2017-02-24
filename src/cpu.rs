@@ -1,5 +1,5 @@
 #[derive(PartialEq, Eq, Default, Debug)]
-struct Registers {
+pub struct Registers {
         // Registers :
         a  : u8,
         b  : u8,
@@ -18,13 +18,13 @@ struct Registers {
 
 #[derive(PartialEq, Eq, Default, Debug)]
 // Deriving Eq & show?
-struct Clock {
+pub struct Clock {
         m : u32,
         t : u32,
 }
 
 #[derive(PartialEq, Eq, Debug)]
-enum InterruptState {
+pub enum InterruptState {
         IEnabled,
         IDisabled,
         INextInstD,
@@ -36,8 +36,8 @@ impl Default for InterruptState {
 }
 
 #[derive(PartialEq, Eq, Default, Debug)]
-struct Cpu {
-        registers : Registers,
-        clock : Clock,
-        interrupt : InterruptState,
+pub struct Cpu {
+        pub registers : Registers,
+        pub clock : Clock,
+        pub interrupt : InterruptState,
 }

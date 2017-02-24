@@ -143,8 +143,8 @@ pub fn describe_cartridge(mmu : Mmu) -> Result<CartridgeDesc> {
             .ok_or(Error::new(ErrorKind::Other,
                                   "Cannot read cartridge header")));
 
-    let mut title = read_string(&mmu.rom[0x0134..], 0x0F);
-    let mut manufacturer = read_string(&mmu.rom[0x013F..], 0x0F);
+    let title = read_string(&mmu.rom[0x0134..], 0x0F);
+    let  manufacturer = read_string(&mmu.rom[0x013F..], 0x0F);
 
     Ok(CartridgeDesc {
         title : title,
