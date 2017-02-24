@@ -17,3 +17,13 @@ pub fn swap(v : u8) -> u8 {
 pub fn empty_memory<I : Iterator>(range : I) -> Vec<u8> {
     range.map(|_| 0).collect()
 }
+
+pub fn read_string(memory : &[u8], max_len : usize) -> String {
+    let mut string = String::new();
+    let mut idx = 0;
+    while (idx < max_len) && memory[idx] != 0 {
+        string.push(memory[idx] as char);
+        idx += 1;
+    }
+    return string
+}

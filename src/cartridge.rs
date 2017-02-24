@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Result, Error, ErrorKind};
 use mmu::*;
+use tools::*;
 
 // Game boy color flag
 pub enum CGBFlag {
@@ -114,6 +115,7 @@ pub fn get_cartridge_type(byte : u8) -> Option<CartridgeType> {
     Some(def)
 }
 
+// Load a .gb file into the Mmu struct
 pub fn mmu_from_rom_file(filename : String) -> Result<Mmu> {
     let mut file = try!(File::open(filename));
 
@@ -132,4 +134,26 @@ pub fn mmu_from_rom_file(filename : String) -> Result<Mmu> {
         }
         _ => return Err(Error::new(ErrorKind::Other, "Wrong file size"))
     }
+}
+
+// Look into an Mmu struct to extract the cartridge descriptor
+pub fn describe_cartridge(mmu : Mmu) -> Result<CartridgeDesc> {
+    let cartridge_type = try!(
+        get_cartridge_type(mmu.rom[0x147])
+            .ok_or(Error::new(ErrorKind::Other,
+                                  "Cannot read cartridge header")));
+
+    let mut title = read_string(&mmu.rom[0x0134..], 0x0F);
+    let mut manufacturer = read_string(&mmu.rom[0x013F..], 0x0F);
+
+    Ok(CartridgeDesc {
+        title : title,
+        manufacturer : manufacturer,
+        cartridge_type : cartridge_type,
+    })
+}
+
+// Load a .gb file and wrap it into a Vm struct
+pub fn load_rom() {
+    //TODO
 }
