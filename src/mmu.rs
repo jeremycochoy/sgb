@@ -1,3 +1,22 @@
+/** MMU Module (Contain all the non-graphic memory)
+
+> From: Pan Docs - nocash / kOOPa
+>
+> General Memory Map
+>
+>  0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
+>  4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
+>  8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
+>  A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
+>  C000-CFFF   4KB Work RAM Bank 0 (WRAM)
+>  D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
+>  E000-FDFF   Work RAM (Shadow) Same as C000-DDFF
+>  FE00-FE9F   Sprite Attribute Table (OAM)
+>  FEA0-FEFF   Not Usable
+>  FF00-FF7F   I/O Ports
+>  FF80-FFFE   High RAM (HRAM)
+>  FFFF        Interrupt Enable Register
+*/
 use tools::*;
 use gpu::*;
 
@@ -50,16 +69,71 @@ impl Default for Mmu {
             0x21, 0x04, 0x01, 0x11, 0xA8, 0x00, 0x1A, 0x13, 0xBE, 0x20, 0xFE, 0x23, 0x7D, 0xFE, 0x34, 0x20,
             0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xFB, 0x86, 0x20, 0xFE, 0x3E, 0x01, 0xE0, 0x50
         ],
-        rom   : empty_memory(0x0000..0x3FFF),
-        srom  : empty_memory(0x4000..0x7FFF),
-        eram  : empty_memory(0xA000..0xBFFF),
-        wram  : empty_memory(0xC000..0xCFFF),
-        swram : empty_memory(0xD000..0xDFFF),
-        oam   : empty_memory(0xFE00..0xFE9F),
-        hram  : empty_memory(0xFF80..0xFFFE),
+        rom   : empty_memory(0x0000..0x4000),
+        srom  : empty_memory(0x4000..0x8000),
+        eram  : empty_memory(0xA000..0xC000),
+        wram  : empty_memory(0xC000..0xD000),
+        swram : empty_memory(0xD000..0xE000),
+        oam   : empty_memory(0xFE00..0xFEA0),
+        hram  : empty_memory(0xFF80..0xFFFF),
         ier   : 0x00,
         bios_enabled : true,
         gpu   : Default::default(),
     }
     }
+}
+
+/// Read a byte from MMU (TODO)
+pub fn rb(addr : u16, mmu : &Mmu) -> u8 {
+    let addr = addr as usize;
+    match addr {
+        0x0000...0x00FF => if mmu.bios_enabled {mmu.bios[addr]}
+        else {
+            mmu.rom[addr]
+        },
+        0x0100...0x3FFF => mmu.rom[addr],
+        0x4000...0x7FFF => mmu.srom[addr - 0x4000],
+        0x8000...0x9FFF => mmu.gpu.vram[addr - 0x8000],
+        0xA000...0xBFFF => mmu.eram[addr - 0xA000],
+        0xC000...0xCFFF => mmu.wram[addr - 0xC000],
+        0xD000...0xDFFF => mmu.swram[addr - 0xD000],
+        0xE000...0xEFFF => mmu.wram[addr - 0xE000],
+        0xF000...0xFDFF => mmu.swram[addr - 0xF000],
+        0xFE00...0xFE9F => mmu.oam[addr - 0xFE00],
+        0xFF80...0xFFFE => mmu.hram[addr - 0xFF80],
+        0xFFFF => mmu.ier,
+        _ => 0, //TODO
+    }
+}
+
+/// Read a word (2 bytes) from MMU at address addr
+pub fn rw(addr : u16, mmu : &Mmu) -> u16 {
+    let l = rb(addr, mmu);
+    let h = rb(addr + 1, mmu);
+    w_combine(h, l)
+}
+
+/// Write a byte to the MMU at address addr (TODO)
+pub fn wb(addr : u16, value : u8, mmu : &mut Mmu) {
+    let addr = addr as usize;
+    match addr {
+        0x0000...0x7FFF => return, // ROM is Read Only
+        0x8000...0x9FFF => mmu.gpu.vram[addr - 0x8000] = value,
+        0xA000...0xBFFF => mmu.eram[addr - 0xA000] = value,
+        0xC000...0xCFFF => mmu.wram[addr - 0xC000] = value,
+        0xD000...0xDFFF => mmu.swram[addr - 0xD000] = value,
+        0xE000...0xEFFF => mmu.wram[addr - 0xE000] = value,
+        0xF000...0xFDFF => mmu.swram[addr - 0xF000] = value,
+        0xFE00...0xFE9F => mmu.oam[addr - 0xFE00] = value,
+        0xFF80...0xFFFE => mmu.hram[addr - 0xFF80] = value,
+        0xFFFF => mmu.ier = value,
+        _ => return, //TODO
+    }
+}
+
+/// Write a word (2 bytes) into the MMU at adress addr
+pub fn ww(addr : u16, value : u16, mmu : &mut Mmu) {
+    let (h, l) = w_uncombine(value);
+    wb(addr, l, mmu);
+    wb(addr + 1, h, mmu);
 }

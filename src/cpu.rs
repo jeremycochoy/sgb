@@ -1,3 +1,6 @@
+use vm::*;
+use mmu;
+
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct Registers {
         // Registers :
@@ -17,7 +20,6 @@ pub struct Registers {
 }
 
 #[derive(PartialEq, Eq, Default, Debug)]
-// Deriving Eq & show?
 pub struct Clock {
         m : u32,
         t : u32,
@@ -40,4 +42,16 @@ pub struct Cpu {
         pub registers : Registers,
         pub clock : Clock,
         pub interrupt : InterruptState,
+}
+
+/// Read a byte from the memory pointed by PC, and increment PC
+pub fn read_program_byte(vm : &mut Vm) -> u8 {
+    vm.cpu.registers.pc += 1;
+    mmu::rb(vm.cpu.registers.pc, &vm.mmu)
+}
+
+/// Read a word (2bytes) from the memory pointed by PC, and increment PC
+pub fn read_program_word(vm : &mut Vm) -> u16 {
+    vm.cpu.registers.pc += 2;
+    mmu::rw(vm.cpu.registers.pc, &vm.mmu)
 }

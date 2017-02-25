@@ -2,8 +2,9 @@ use std::fs::File;
 use std::io::{Read, Result, Error, ErrorKind};
 use mmu::*;
 use tools::*;
+use vm::*;
 
-// Game boy color flag
+/// Game boy color flag
 pub enum CGBFlag {
     CGBOnly,
     CGBCompat,
@@ -52,7 +53,7 @@ impl Default for CartridgeType {
   }
 }
 
-// Describe a cartridge
+/// Describe a cartridge
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct CartridgeDesc {
     title : String,
@@ -115,7 +116,7 @@ pub fn get_cartridge_type(byte : u8) -> Option<CartridgeType> {
     Some(def)
 }
 
-// Load a .gb file into the Mmu struct
+/// Load a .gb file into the Mmu struct
 pub fn mmu_from_rom_file(filename : String) -> Result<Mmu> {
     let mut file = try!(File::open(filename));
 
@@ -136,8 +137,8 @@ pub fn mmu_from_rom_file(filename : String) -> Result<Mmu> {
     }
 }
 
-// Look into an Mmu struct to extract the cartridge descriptor
-pub fn describe_cartridge(mmu : Mmu) -> Result<CartridgeDesc> {
+/// Look into an Mmu struct to extract the cartridge descriptor
+pub fn describe_cartridge(mmu : &Mmu) -> Result<CartridgeDesc> {
     let cartridge_type = try!(
         get_cartridge_type(mmu.rom[0x147])
             .ok_or(Error::new(ErrorKind::Other,
@@ -153,7 +154,14 @@ pub fn describe_cartridge(mmu : Mmu) -> Result<CartridgeDesc> {
     })
 }
 
-// Load a .gb file and wrap it into a Vm struct
-pub fn load_rom() {
-    //TODO
+/// Load a .gb file and wrap it into a Vm struct
+pub fn load_rom(filename : String) -> Result<Vm> {
+    let mmu = try!(mmu_from_rom_file(filename));
+    let cartridge = try!(describe_cartridge(&mmu));
+
+    Ok(Vm {
+        cpu : Default::default(),
+        mmu : mmu,
+        cartridge : cartridge,
+    })
 }

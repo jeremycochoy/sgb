@@ -2,7 +2,7 @@ use tools::*;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Gpu {
-        vram : Vec<u8>
+        pub vram : Vec<u8>
 }
 
 impl Default for Gpu {
