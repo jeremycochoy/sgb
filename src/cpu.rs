@@ -163,13 +163,15 @@ pub struct Instruction(&'static str, Box<Fn(&mut Vm) -> Clock>);
 pub fn dispatch(opcode : u8) -> Instruction {
     match opcode {
         0x00 => Instruction("NOP", Box::new(i_nop)),
+        0x01 => Instruction("LDBCd16", Box::new(|vm : &mut Vm| i_ldr16d16(vm, Register::B, Register::C))),
+        0x02 => Instruction("LD(BC)A", Box::new(|vm : &mut Vm| i_ldr16mr(vm, Register::B, Register::C, Register::A))),
 
-        0x40 => Instruction("LDbb", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::B))),
-        0x41 => Instruction("LDbc", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::C))),
-        0x42 => Instruction("LDbd", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::D))),
-        0x43 => Instruction("LDbe", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::E))),
-        0x44 => Instruction("LDbh", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::H))),
-        0x45 => Instruction("LDbl", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::L))),
+        0x40 => Instruction("LDBB", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::B))),
+        0x41 => Instruction("LDBC", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::C))),
+        0x42 => Instruction("LDBD", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::D))),
+        0x43 => Instruction("LDBE", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::E))),
+        0x44 => Instruction("LDBH", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::H))),
+        0x45 => Instruction("LDBL", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::L))),
         _ => panic!("Missing instruction !"),
     }
 }
@@ -196,23 +198,24 @@ pub fn i_ldrr(vm : &mut Vm, dst : Register, src : Register) -> Clock {
     Clock { m:1, t:4 }
 }
 
-/// Same as LD, but alow to use (HL) on the right side
+/// Same as LD, but alow to use (h:l) on the right side
 ///
-/// Syntax : `LDrhl vm:Vm dst:Register`
+/// Syntax : `LDrr16m vm:Vm h:Register l:Register`
 ///
-/// > LDrHL Register <- (HL)
-pub fn i_ldrhl(vm : &mut Vm, dst : Register) -> Clock {
+/// > LDrr16m Register <- (h:l)
+pub fn i_ldrr16m(vm : &mut Vm, dst : Register) -> Clock {
     reg![vm ; dst] = mmu::rb(hl![vm], &vm.mmu);
     Clock { m:1, t:8 }
 }
 
-/// Same as LD, but alow to use (HL) on the right side
+/// Same as LD, but alow to use (h:l) on the left side
 ///
-/// Syntax : `LDhlr vm:Vm src:Register`
+/// Syntax : `LDhlr vm:Vm h:Register l:Register`
 ///
-/// > LDrHL (HL) <- Register
-pub fn i_ldhlr(vm : &mut Vm, src : Register) -> Clock {
-     mmu::wb(hl![vm], reg![vm ; src], &mut vm.mmu);
+/// > LDr16mr (h:l) <- Register
+pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Clock {
+    let addr = get_r16(vm, h, l);
+    mmu::wb(addr, reg![vm ; src], &mut vm.mmu);
     Clock { m:1, t:8 }
 }
 
@@ -274,6 +277,13 @@ pub fn i_lda16a(vm : &mut Vm) -> Clock {
 pub fn i_ldaa16(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
     reg![vm ; Register::A] = mmu::rb(a16, &vm.mmu);
+    Clock { m:3, t:12 }
+}
+
+/// LD r16 <- d16 where d16 means direct Word8 value
+pub fn i_ldr16d16(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    let d16 = read_program_word(vm);
+    set_r16(vm, h, l, d16);
     Clock { m:3, t:12 }
 }
 
