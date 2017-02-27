@@ -315,8 +315,15 @@ pub fn i_orr(vm : &mut Vm, src : Register) -> Clock {
 }
 
 /// Bitwise OR the register A with (HL) into A
-/// Syntax : `OR src`
+/// Syntax : `ORHL`
 pub fn i_orhl(vm : &mut Vm) -> Clock {
+    i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
+    Clock { m:1, t:8 }
+}
+
+/// Bitwise OR the register A with the immediate word8 into A
+/// Syntax : `ORd8`
+pub fn i_ord8(vm : &mut Vm) -> Clock {
     i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
     Clock { m:1, t:8 }
 }
