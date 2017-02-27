@@ -13,6 +13,7 @@ pub struct Registers {
         sp : u16,
 }
 
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 /// Name of the register
 pub enum Register {
     A = 0,
@@ -25,6 +26,7 @@ pub enum Register {
     F = 7,
 }
 
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 /// List of flags
 pub enum Flag {
     Z = 7,
@@ -92,7 +94,7 @@ pub fn set_flag(vm : &mut Vm, flag : Flag, value : bool) {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Default, Debug)]
 /// Represent a 'time' enlapsed
 pub struct Clock {
     /// Length in byte of the last instruction
@@ -101,7 +103,7 @@ pub struct Clock {
     t : u32,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum InterruptState {
         IEnabled,
         IDisabled,
@@ -325,5 +327,54 @@ pub fn i_orhl(vm : &mut Vm) -> Clock {
 /// Syntax : `ORd8`
 pub fn i_ord8(vm : &mut Vm) -> Clock {
     i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
+    Clock { m:1, t:8 }
+}
+
+/// Implementation of the increment instruction (setting flags)
+pub fn i_inc_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, final_val == 0);
+    set_flag(vm, Flag::H, (initial_val & 0x0F + 1 > 0x0F));
+    set_flag(vm, Flag::N, false);
+}
+
+/// Increment the register given, and set Z, H as expected.
+/// Always set N to 0.
+///
+/// Syntax : `INC reg:Register`
+pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
+    let initial_val = reg![vm ; reg];
+    reg![vm ; reg] += 1;
+    let final_val = reg![vm ; reg];
+    i_inc_impl(vm, initial_val, final_val);
+    Clock { m:1, t:4 }
+}
+
+/// Increment (HL), and set Z, H as expected.
+/// Always set N to 0.
+///
+/// Syntax : `INCHL`
+pub fn i_inchl(vm : &mut Vm) -> Clock {
+    let initial_val = mmu::rb(hl![vm], &vm.mmu);
+    let final_val = initial_val + 1;
+    mmu::wb(hl![vm], final_val, &mut vm.mmu);
+    i_inc_impl(vm, initial_val, final_val);
+    Clock { m:1, t:12 }
+}
+
+/// Increment the 16 bits register given.
+/// Leave flags unaffected.
+///
+/// Syntax : `INC hight:Register low:Register`
+pub fn i_incr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    let initial_h = reg![vm ; h];
+    let initial_l = reg![vm ; l];
+    let initial_val = w_combine(initial_h, initial_l);
+
+    let final_val = initial_val + 1;
+    let (final_h, final_l) = w_uncombine(final_val);
+    reg![vm ; h] = final_h;
+    reg![vm ; l] = final_l;
+
     Clock { m:1, t:8 }
 }
