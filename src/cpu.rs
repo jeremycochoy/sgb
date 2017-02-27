@@ -3,6 +3,10 @@ use tools::*;
 use mmu;
 use std::boxed::Box;
 
+//////////////////////////////////////////////////////////
+// Registers and utilitary functions to manipulate them
+//////////////////////////////////////////////////////////
+
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct Registers {
         // Registers (a, b, c, d, e, h, l, f) :
@@ -93,6 +97,24 @@ pub fn set_flag(vm : &mut Vm, flag : Flag, value : bool) {
         reg![vm ; Register::F] &= !(1 << flag as usize)
     }
 }
+
+/// Get the value from two registers h and l glued together (h:l)
+pub fn get_r16(vm : &mut Vm, h : Register, l : Register) -> u16 {
+    let initial_h = reg![vm ; h];
+    let initial_l = reg![vm ; l];
+    w_combine(initial_h, initial_l)
+}
+
+/// Set the value of two registers h and l glued together (h:l)
+pub fn set_r16(vm : &mut Vm, h : Register, l : Register, value : u16) {
+    let (value_h, value_l) = w_uncombine(value);
+    reg![vm ; h] = value_h;
+    reg![vm ; l] = value_l;
+}
+
+//////////////////////////////////////////
+// CPU structurs, data types, and states
+//////////////////////////////////////////
 
 #[derive(PartialEq, Eq, Clone, Copy, Default, Debug)]
 /// Represent a 'time' enlapsed
@@ -367,14 +389,55 @@ pub fn i_inchl(vm : &mut Vm) -> Clock {
 ///
 /// Syntax : `INC hight:Register low:Register`
 pub fn i_incr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
-    let initial_h = reg![vm ; h];
-    let initial_l = reg![vm ; l];
-    let initial_val = w_combine(initial_h, initial_l);
-
+    let initial_val = get_r16(vm, h, l);
     let final_val = initial_val + 1;
-    let (final_h, final_l) = w_uncombine(final_val);
-    reg![vm ; h] = final_h;
-    reg![vm ; l] = final_l;
+    set_r16(vm, h, l, final_val);
+
+    Clock { m:1, t:8 }
+}
+
+
+/// Implementation of the increment instruction (setting flags)
+pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, final_val == 0);
+    // intial_val - 1 == initial_val + 0xFF
+    set_flag(vm, Flag::H, (initial_val & 0x0F + 0x0F > 0x0F));
+    set_flag(vm, Flag::N, false);
+}
+
+/// Decrement the register given, and set Z, H as expected.
+/// Always set N to 0.
+///
+/// Syntax : `DEC reg:Register`
+pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
+    let initial_val = reg![vm ; reg];
+    reg![vm ; reg] += 1;
+    let final_val = reg![vm ; reg];
+    i_dec_impl(vm, initial_val, final_val);
+    Clock { m:1, t:4 }
+}
+
+/// Decrement (HL), and set Z, H as expected.
+/// Always set N to 0.
+///
+/// Syntax : `INCHL`
+pub fn i_dechl(vm : &mut Vm) -> Clock {
+    let initial_val = mmu::rb(hl![vm], &vm.mmu);
+    let final_val = initial_val + 1;
+    mmu::wb(hl![vm], final_val, &mut vm.mmu);
+    i_dec_impl(vm, initial_val, final_val);
+    Clock { m:1, t:12 }
+}
+
+/// Decrement the 16 bits register given.
+/// Leave flags unaffected.
+///
+/// Syntax : `DEC hight:Register low:Register`
+pub fn i_decr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    let initial_val = get_r16(vm, h, l);
+    let final_val = initial_val + 1;
+    set_r16(vm, h, l, final_val);
 
     Clock { m:1, t:8 }
 }
