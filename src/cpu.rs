@@ -165,6 +165,19 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x00 => Instruction("NOP", Box::new(i_nop)),
         0x01 => Instruction("LDBCd16", Box::new(|vm : &mut Vm| i_ldr16d16(vm, Register::B, Register::C))),
         0x02 => Instruction("LD(BC)A", Box::new(|vm : &mut Vm| i_ldr16mr(vm, Register::B, Register::C, Register::A))),
+        0x03 => Instruction("INCBC", Box::new(|vm : &mut Vm| i_incr16(vm, Register::B, Register::C))),
+        0x04 => Instruction("INCB", Box::new(|vm : &mut Vm| i_incr(vm, Register::B))),
+        0x05 => Instruction("DECb", Box::new(|vm : &mut Vm| i_decr(vm, Register::B))),
+        0x06 => Instruction("LDBd8", Box::new(|vm : &mut Vm| i_ldrd8(vm, Register::B))),
+        //0x07 =>
+        //0x08 =>
+        //0x09 =>
+        0x0A => Instruction("LDABCm", Box::new(|vm : &mut Vm| i_ldrr16m(vm, Register::A, Register::B, Register::C))),
+        0x0B => Instruction("DECBC", Box::new(|vm : &mut Vm| i_decr16(vm, Register::B, Register::C))),
+        0x0C => Instruction("INCC", Box::new(|vm : &mut Vm| i_incr(vm, Register::C))),
+        0x0D => Instruction("DECC", Box::new(|vm : &mut Vm| i_decr(vm, Register::C))),
+        0x0E => Instruction("LDCd8", Box::new(|vm : &mut Vm| i_ldrd8(vm, Register::C))),
+        //0x0F =>
 
         0x40 => Instruction("LDBB", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::B))),
         0x41 => Instruction("LDBC", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::C))),
@@ -203,8 +216,9 @@ pub fn i_ldrr(vm : &mut Vm, dst : Register, src : Register) -> Clock {
 /// Syntax : `LDrr16m vm:Vm h:Register l:Register`
 ///
 /// > LDrr16m Register <- (h:l)
-pub fn i_ldrr16m(vm : &mut Vm, dst : Register) -> Clock {
-    reg![vm ; dst] = mmu::rb(hl![vm], &vm.mmu);
+pub fn i_ldrr16m(vm : &mut Vm, dst : Register, h : Register, l : Register) -> Clock {
+    let addr = get_r16(vm, h, l);
+    reg![vm ; dst] = mmu::rb(addr, &vm.mmu);
     Clock { m:1, t:8 }
 }
 
