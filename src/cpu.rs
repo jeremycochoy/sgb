@@ -169,53 +169,64 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     // Run the instruction
     let opcode = read_program_byte(vm);
-    let clock = dispatch(opcode);
+    let Instruction(name, fct) = dispatch(opcode);
+
+    let clock = (fct)(vm);
+    println!("{:?} {}", clock, name);
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     //update_gpu_mode(&mut vm.gpu, clock.t);
 }
 
+/// Simple macro for writing dispatch more easily
+macro_rules! mk_inst {
+    [$vm:ident > $name:expr , $f:expr] => {{
+        Instruction($name, Box::new(|$vm : &mut Vm| $f))
+    }}
+}
+
 /// Associate to each opcode:u8 it's instruction:Instruction
 pub fn dispatch(opcode : u8) -> Instruction {
     match opcode {
-        0x00 => Instruction("NOP", Box::new(i_nop)),
-        0x01 => Instruction("LDBCd16", Box::new(|vm : &mut Vm| i_ldr16d16(vm, Register::B, Register::C))),
-        0x02 => Instruction("LD(BC)A", Box::new(|vm : &mut Vm| i_ldr16mr(vm, Register::B, Register::C, Register::A))),
-        0x03 => Instruction("INCBC", Box::new(|vm : &mut Vm| i_incr16(vm, Register::B, Register::C))),
-        0x04 => Instruction("INCB", Box::new(|vm : &mut Vm| i_incr(vm, Register::B))),
-        0x05 => Instruction("DECb", Box::new(|vm : &mut Vm| i_decr(vm, Register::B))),
-        0x06 => Instruction("LDBd8", Box::new(|vm : &mut Vm| i_ldrd8(vm, Register::B))),
+        0x00 => mk_inst![vm> "NOP",     i_nop(vm)],
+        0x01 => mk_inst![vm> "LDBCd16", i_ldr16d16(vm, Register::B, Register::C)],
+        0x02 => mk_inst![vm> "LD(BC)A", i_ldr16mr(vm, Register::B, Register::C, Register::A)],
+        0x03 => mk_inst![vm> "INCBC",   i_incr16(vm, Register::B, Register::C)],
+        0x04 => mk_inst![vm> "INCB",    i_incr(vm, Register::B)],
+        0x05 => mk_inst![vm> "DECb",    i_decr(vm, Register::B)],
+        0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
         //0x07 =>
         //0x08 =>
         //0x09 =>
-        0x0A => Instruction("LDABCm", Box::new(|vm : &mut Vm| i_ldrr16m(vm, Register::A, Register::B, Register::C))),
-        0x0B => Instruction("DECBC", Box::new(|vm : &mut Vm| i_decr16(vm, Register::B, Register::C))),
-        0x0C => Instruction("INCC", Box::new(|vm : &mut Vm| i_incr(vm, Register::C))),
-        0x0D => Instruction("DECC", Box::new(|vm : &mut Vm| i_decr(vm, Register::C))),
-        0x0E => Instruction("LDCd8", Box::new(|vm : &mut Vm| i_ldrd8(vm, Register::C))),
+        0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
+        0x0B => mk_inst![vm> "DECBC",   i_decr16(vm, Register::B, Register::C)],
+        0x0C => mk_inst![vm> "INCC",    i_incr(vm, Register::C)],
+        0x0D => mk_inst![vm> "DECC",    i_decr(vm, Register::C)],
+        0x0E => mk_inst![vm> "LDCd8",   i_ldrd8(vm, Register::C)],
         //0x0F =>
 
-        0x11 => Instruction("LDDEd16", Box::new(|vm : &mut Vm| i_ldr16d16(vm, Register::D, Register::E))),
-/*dispatch 0x12 = trace "LDDEma"   $ iLDHL lDEm a
-dispatch 0x13 = trace "INCDE"    $ iINCr16 lDE
-dispatch 0x14 = trace "INCd"     $ iINC d
-dispatch 0x15 = trace "DECd"     $ iDEC d
-dispatch 0x16 = trace "LDdd8"    $ iLDd8 d
-dispatch 0x17 = trace "RLa"      $ iRLA
-dispatch 0x18 = trace "JRr8"     $ iJR
-dispatch 0x1A = trace "LDaDEm"   $ iLDHL a lDEm
-dispatch 0x1B = trace "DECDE"    $ iDECr16 lDE
-dispatch 0x1C = trace "INCe"     $ iINC e
-dispatch 0x1D = trace "DECe"     $ iDEC e
-dispatch 0x1E = trace "LDed8"    $ iLDd8 e
-dispatch 0x1F = trace "RCa"      $ iRR a*/
+        0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
 
-        0x40 => Instruction("LDBB", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::B))),
-        0x41 => Instruction("LDBC", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::C))),
-        0x42 => Instruction("LDBD", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::D))),
-        0x43 => Instruction("LDBE", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::E))),
-        0x44 => Instruction("LDBH", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::H))),
-        0x45 => Instruction("LDBL", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::L))),
+        0x40 => mk_inst![vm> "LDBB",    i_ldrr(vm, Register::B, Register::B)],
+        0x41 => mk_inst![vm> "LDBC",    i_ldrr(vm, Register::B, Register::C)],
+        0x42 => mk_inst![vm> "LDBD",    i_ldrr(vm, Register::B, Register::D)],
+        0x43 => mk_inst![vm> "LDBE",    i_ldrr(vm, Register::B, Register::E)],
+        0x44 => mk_inst![vm> "LDBH",    i_ldrr(vm, Register::B, Register::H)],
+        0x45 => mk_inst![vm> "LDBL",    i_ldrr(vm, Register::B, Register::L)],
+
+        0xA8 => mk_inst![vm> "XORb",    i_xorr(vm, Register::B)],
+        0xA9 => mk_inst![vm> "XORc",    i_xorr(vm, Register::C)],
+        0xAA => mk_inst![vm> "XORd",    i_xorr(vm, Register::D)],
+        0xAB => mk_inst![vm> "XORe",    i_xorr(vm, Register::E)],
+        0xAC => mk_inst![vm> "XORh",    i_xorr(vm, Register::H)],
+        0xAD => mk_inst![vm> "XORl",    i_xorr(vm, Register::L)],
+        0xAE => mk_inst![vm> "XORhlm",  i_xorhlm(vm)],
+        0xAF => mk_inst![vm> "XORa",    i_xorr(vm, Register::A)],
+
+        0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
+
+        0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
+
         _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
     }
 }
@@ -355,15 +366,15 @@ pub fn i_xor_imp(src_val : u8, vm : &mut Vm) {
 
 /// XOR the register A with a register src into A
 /// Syntax : `XOR src:Register`
-pub fn i_xorrr(vm : &mut Vm, src : Register) -> Clock {
+pub fn i_xorr(vm : &mut Vm, src : Register) -> Clock {
     reset_flags(vm);
     i_xor_imp(reg![vm ; src], vm);
     Clock { m:1, t:8 }
 }
 
 /// XOR the register A with (HL) into A
-/// Syntax : `XORHL`
-pub fn i_xorhl(vm : &mut Vm) -> Clock {
+/// Syntax : `XORHLm`
+pub fn i_xorhlm(vm : &mut Vm) -> Clock {
     reset_flags(vm);
     i_xor_imp(mmu::rb(hl![vm], &vm.mmu), vm);
     Clock { m:1, t:8 }
@@ -495,4 +506,47 @@ pub fn i_decr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     set_r16(vm, h, l, final_val);
 
     Clock { m:1, t:8 }
+}
+
+// CP & SUB TODO
+
+/// Compare src:Register with A and set the flags Z/H/C.
+/// Set register N to 1.
+pub fn i_cpr(vm : &mut Vm, src : Register) -> Clock {
+    let input = reg![vm ; src];
+
+    // Update flags and discard result
+    i_sub_imp(vm, input);
+
+    Clock { m:1, t:4 }
+}
+
+pub fn i_cphlm(vm : &mut Vm) -> Clock {
+    let input = mmu::rb(hl![vm], &mut vm.mmu);
+
+    // Update flags and discard result
+    i_sub_imp(vm, input);
+
+    Clock { m:1, t:8 }
+}
+
+pub fn i_cpd8(vm : &mut Vm) -> Clock {
+    let input = read_program_byte(vm);
+
+    // Update flags and discard result
+    i_sub_imp(vm, input);
+
+    Clock { m:2, t:8 }
+}
+
+pub fn i_sub_imp(vm : &mut Vm, value : u8) -> u8 {
+    let a = reg![vm ; Register::A];
+    let b = value;
+    let diff = a.wrapping_sub(b);
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, diff == 0);
+    set_flag(vm, Flag::N, true);
+    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b) > 0xF);
+    set_flag(vm, Flag::C, b > a);
+    return diff
 }
