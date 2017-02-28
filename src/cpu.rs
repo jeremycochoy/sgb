@@ -129,8 +129,6 @@ pub struct Clock {
 pub enum InterruptState {
         IEnabled,
         IDisabled,
-        INextInstD,
-        INextInstE,
 }
 
 impl Default for InterruptState {
@@ -156,10 +154,28 @@ pub fn read_program_word(vm : &mut Vm) -> u16 {
     mmu::rw(vm.cpu.registers.pc, &vm.mmu)
 }
 
-
-//pub struct Instruction(&'static str, fn(&mut Vm) -> Clock);
+/// Store a CPU's instruction, that is a string describing the assembly instruction, and the *function pointer*
 pub struct Instruction(&'static str, Box<Fn(&mut Vm) -> Clock>);
 
+/// Execute exactly one instruction by the CPU
+///
+/// The function load the byte pointed by PC, increment PC,
+/// and call dispatch with the opcode to run the instruction.
+pub fn execute_one_instruction(vm : &mut Vm) {
+    // Disable bios if needed
+    if pc![vm] >= 0x100 {
+        vm.mmu.bios_enabled = false;
+    }
+
+    // Run the instruction
+    let opcode = read_program_byte(vm);
+    let clock = dispatch(opcode);
+
+    // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
+    //update_gpu_mode(&mut vm.gpu, clock.t);
+}
+
+/// Associate to each opcode:u8 it's instruction:Instruction
 pub fn dispatch(opcode : u8) -> Instruction {
     match opcode {
         0x00 => Instruction("NOP", Box::new(i_nop)),
@@ -179,13 +195,28 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x0E => Instruction("LDCd8", Box::new(|vm : &mut Vm| i_ldrd8(vm, Register::C))),
         //0x0F =>
 
+        0x11 => Instruction("LDDEd16", Box::new(|vm : &mut Vm| i_ldr16d16(vm, Register::D, Register::E))),
+/*dispatch 0x12 = trace "LDDEma"   $ iLDHL lDEm a
+dispatch 0x13 = trace "INCDE"    $ iINCr16 lDE
+dispatch 0x14 = trace "INCd"     $ iINC d
+dispatch 0x15 = trace "DECd"     $ iDEC d
+dispatch 0x16 = trace "LDdd8"    $ iLDd8 d
+dispatch 0x17 = trace "RLa"      $ iRLA
+dispatch 0x18 = trace "JRr8"     $ iJR
+dispatch 0x1A = trace "LDaDEm"   $ iLDHL a lDEm
+dispatch 0x1B = trace "DECDE"    $ iDECr16 lDE
+dispatch 0x1C = trace "INCe"     $ iINC e
+dispatch 0x1D = trace "DECe"     $ iDEC e
+dispatch 0x1E = trace "LDed8"    $ iLDd8 e
+dispatch 0x1F = trace "RCa"      $ iRR a*/
+
         0x40 => Instruction("LDBB", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::B))),
         0x41 => Instruction("LDBC", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::C))),
         0x42 => Instruction("LDBD", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::D))),
         0x43 => Instruction("LDBE", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::E))),
         0x44 => Instruction("LDBH", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::H))),
         0x45 => Instruction("LDBL", Box::new(|vm : &mut Vm| i_ldrr(vm, Register::B, Register::L))),
-        _ => panic!("Missing instruction !"),
+        _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
     }
 }
 
