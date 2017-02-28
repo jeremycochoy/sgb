@@ -207,6 +207,11 @@ pub fn dispatch(opcode : u8) -> Instruction {
 
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
 
+        0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
+
+        0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
+        0x32 => mk_inst![vm> "LDDHLmA", i_lddhlma(vm)],
+
         0x40 => mk_inst![vm> "LDBB",    i_ldrr(vm, Register::B, Register::B)],
         0x41 => mk_inst![vm> "LDBC",    i_ldrr(vm, Register::B, Register::C)],
         0x42 => mk_inst![vm> "LDBD",    i_ldrr(vm, Register::B, Register::D)],
@@ -313,11 +318,11 @@ pub fn i_ldiahl(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
 /// Load the value of A in (HL) and decrement HL
 ///
 /// > LDD (HL-) <- A
-pub fn i_lddhla(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
+pub fn i_lddhlma(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
 /// Load the value of (HL) in A and decrement HL
 ///
 /// > LDD A <- (HL-)
-pub fn i_lddahl(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
+pub fn i_lddahlm(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
 
 /// LD Register <- immediate Word8
 pub fn i_ldrd8(vm : &mut Vm, dst : Register) -> Clock {
@@ -363,6 +368,13 @@ pub fn i_lda8a(vm : &mut Vm) -> Clock {
 pub fn i_ldaa8(vm : &mut Vm) -> Clock {
     let a8 = read_program_byte(vm);
     reg![vm ; Register::A] = mmu::rb(a8 as u16 + 0xFF00, &vm.mmu);
+    Clock { m:3, t:12 }
+}
+
+/// LD SP <- d16 where d16 means direct Word8 value
+pub fn i_ldspd16(vm : &mut Vm) -> Clock {
+    let d16 = read_program_word(vm);
+    sp![vm] = d16;
     Clock { m:3, t:12 }
 }
 
