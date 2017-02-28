@@ -223,6 +223,15 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xAE => mk_inst![vm> "XORhlm",  i_xorhlm(vm)],
         0xAF => mk_inst![vm> "XORa",    i_xorr(vm, Register::A)],
 
+        0xB8 => mk_inst![vm> "CPb",     i_cpr(vm, Register::B)],
+        0xB9 => mk_inst![vm> "CPc",     i_cpr(vm, Register::C)],
+        0xBA => mk_inst![vm> "CPd",     i_cpr(vm, Register::D)],
+        0xBB => mk_inst![vm> "CPe",     i_cpr(vm, Register::E)],
+        0xBC => mk_inst![vm> "CPh",     i_cpr(vm, Register::H)],
+        0xBD => mk_inst![vm> "CPl",     i_cpr(vm, Register::L)],
+        0xBE => mk_inst![vm> "CPhlm",   i_cphlm(vm)],
+        0xBF => mk_inst![vm> "CPa",     i_cpr(vm, Register::A)],
+
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
