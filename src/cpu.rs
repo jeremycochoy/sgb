@@ -169,7 +169,10 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     // Run the instruction
     let opcode = read_program_byte(vm);
-    let Instruction(name, fct) = dispatch(opcode);
+    let Instruction(name, fct) = match opcode {
+        0xCB => dispatch_cb(read_program_byte(vm)),
+        _    => dispatch(opcode),
+    };
 
     let clock = (fct)(vm);
     println!("{:?} {}", clock, name);
@@ -190,7 +193,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
     match opcode {
         0x00 => mk_inst![vm> "NOP",     i_nop(vm)],
         0x01 => mk_inst![vm> "LDBCd16", i_ldr16d16(vm, Register::B, Register::C)],
-        0x02 => mk_inst![vm> "LD(BC)A", i_ldr16mr(vm, Register::B, Register::C, Register::A)],
+        0x02 => mk_inst![vm> "LDBCmA",  i_ldr16mr(vm, Register::B, Register::C, Register::A)],
         0x03 => mk_inst![vm> "INCBC",   i_incr16(vm, Register::B, Register::C)],
         0x04 => mk_inst![vm> "INCB",    i_incr(vm, Register::B)],
         0x05 => mk_inst![vm> "DECb",    i_decr(vm, Register::B)],
@@ -206,11 +209,22 @@ pub fn dispatch(opcode : u8) -> Instruction {
         //0x0F =>
 
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
+        0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
+        0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
+        0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
+        0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
 
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
+        0x22 => mk_inst![vm> "LDIHLmA", i_ldihlma(vm)],
+        0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
+        0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
+        0x2E => mk_inst![vm> "LDLd8",   i_ldrd8(vm, Register::L)],
 
         0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
         0x32 => mk_inst![vm> "LDDHLmA", i_lddhlma(vm)],
+        0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
+        0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
+        0x3E => mk_inst![vm> "LDAd8",   i_ldrd8(vm, Register::A)],
 
         0x40 => mk_inst![vm> "LDBB",    i_ldrr(vm, Register::B, Register::B)],
         0x41 => mk_inst![vm> "LDBC",    i_ldrr(vm, Register::B, Register::C)],
@@ -218,6 +232,50 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x43 => mk_inst![vm> "LDBE",    i_ldrr(vm, Register::B, Register::E)],
         0x44 => mk_inst![vm> "LDBH",    i_ldrr(vm, Register::B, Register::H)],
         0x45 => mk_inst![vm> "LDBL",    i_ldrr(vm, Register::B, Register::L)],
+        0x46 => mk_inst![vm> "LDBHLm",  i_ldrr16m(vm, Register::B, Register::H, Register::L)],
+        0x47 => mk_inst![vm> "LDBA",    i_ldrr(vm, Register::B, Register::A)],
+        0x48 => mk_inst![vm> "LDCB",    i_ldrr(vm, Register::C, Register::B)],
+        0x49 => mk_inst![vm> "LDCC",    i_ldrr(vm, Register::C, Register::C)],
+        0x4A => mk_inst![vm> "LDCD",    i_ldrr(vm, Register::C, Register::D)],
+        0x4B => mk_inst![vm> "LDCE",    i_ldrr(vm, Register::C, Register::E)],
+        0x4C => mk_inst![vm> "LDCH",    i_ldrr(vm, Register::C, Register::H)],
+        0x4D => mk_inst![vm> "LDCL",    i_ldrr(vm, Register::C, Register::L)],
+        0x4E => mk_inst![vm> "LDCHLm",  i_ldrr16m(vm, Register::C, Register::H, Register::L)],
+        0x4F => mk_inst![vm> "LDCA",    i_ldrr(vm, Register::C, Register::A)],
+
+        0x50 => mk_inst![vm> "LDDB",    i_ldrr(vm, Register::D, Register::B)],
+        0x51 => mk_inst![vm> "LDDC",    i_ldrr(vm, Register::D, Register::C)],
+        0x52 => mk_inst![vm> "LDDD",    i_ldrr(vm, Register::D, Register::D)],
+        0x53 => mk_inst![vm> "LDDE",    i_ldrr(vm, Register::D, Register::E)],
+        0x54 => mk_inst![vm> "LDDH",    i_ldrr(vm, Register::D, Register::H)],
+        0x55 => mk_inst![vm> "LDDL",    i_ldrr(vm, Register::D, Register::L)],
+        0x56 => mk_inst![vm> "LDDHLm",  i_ldrr16m(vm, Register::D, Register::H, Register::L)],
+        0x57 => mk_inst![vm> "LDDA",    i_ldrr(vm, Register::D, Register::A)],
+        0x58 => mk_inst![vm> "LDEB",    i_ldrr(vm, Register::E, Register::B)],
+        0x59 => mk_inst![vm> "LDEC",    i_ldrr(vm, Register::E, Register::C)],
+        0x5A => mk_inst![vm> "LDED",    i_ldrr(vm, Register::E, Register::D)],
+        0x5B => mk_inst![vm> "LDEE",    i_ldrr(vm, Register::E, Register::E)],
+        0x5C => mk_inst![vm> "LDEH",    i_ldrr(vm, Register::E, Register::H)],
+        0x5D => mk_inst![vm> "LDEL",    i_ldrr(vm, Register::E, Register::L)],
+        0x5E => mk_inst![vm> "LDEHLm",  i_ldrr16m(vm, Register::E, Register::H, Register::L)],
+        0x5F => mk_inst![vm> "LDEA",    i_ldrr(vm, Register::E, Register::A)],
+
+        0x60 => mk_inst![vm> "LDHB",    i_ldrr(vm, Register::H, Register::B)],
+        0x61 => mk_inst![vm> "LDHC",    i_ldrr(vm, Register::H, Register::C)],
+        0x62 => mk_inst![vm> "LDHD",    i_ldrr(vm, Register::H, Register::D)],
+        0x63 => mk_inst![vm> "LDHE",    i_ldrr(vm, Register::H, Register::E)],
+        0x64 => mk_inst![vm> "LDHH",    i_ldrr(vm, Register::H, Register::H)],
+        0x65 => mk_inst![vm> "LDHL",    i_ldrr(vm, Register::H, Register::L)],
+        0x66 => mk_inst![vm> "LDHHLm",  i_ldrr16m(vm, Register::H, Register::H, Register::L)],
+        0x67 => mk_inst![vm> "LDHA",    i_ldrr(vm, Register::H, Register::A)],
+        0x68 => mk_inst![vm> "LDLB",    i_ldrr(vm, Register::L, Register::B)],
+        0x69 => mk_inst![vm> "LDLC",    i_ldrr(vm, Register::L, Register::C)],
+        0x6A => mk_inst![vm> "LDLD",    i_ldrr(vm, Register::L, Register::D)],
+        0x6B => mk_inst![vm> "LDLE",    i_ldrr(vm, Register::L, Register::E)],
+        0x6C => mk_inst![vm> "LDLH",    i_ldrr(vm, Register::L, Register::H)],
+        0x6D => mk_inst![vm> "LDLL",    i_ldrr(vm, Register::L, Register::L)],
+        0x6E => mk_inst![vm> "LDLHLm",  i_ldrr16m(vm, Register::L, Register::H, Register::L)],
+        0x6F => mk_inst![vm> "LDLA",    i_ldrr(vm, Register::L, Register::A)],
 
         0xA8 => mk_inst![vm> "XORb",    i_xorr(vm, Register::B)],
         0xA9 => mk_inst![vm> "XORc",    i_xorr(vm, Register::C)],
@@ -237,6 +295,8 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xBE => mk_inst![vm> "CPhlm",   i_cphlm(vm)],
         0xBF => mk_inst![vm> "CPa",     i_cpr(vm, Register::A)],
 
+        0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
+
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
@@ -245,6 +305,13 @@ pub fn dispatch(opcode : u8) -> Instruction {
     }
 }
 
+/// Associate to each opcode:u8 it's instruction:Instruction in the 0xCB table
+pub fn dispatch_cb(opcode : u8) -> Instruction {
+    match opcode {
+        // 0x00 =>
+        _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:2X} !", opcode)),
+    }
+}
 
 /////////////////////////////////////////
 //
@@ -310,11 +377,11 @@ pub fn i_ldmod_ahl(vm : &mut Vm, modificator : i16) -> Clock {
 /// Load the value of A in (HL) and increment HL
 ///
 /// > LDI (HL+) <- A
-pub fn i_ldihla(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
+pub fn i_ldihlma(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
 /// Load the value of (HL) in A and increment HL
 ///
 /// > LDI A <- (HL+)
-pub fn i_ldiahl(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
+pub fn i_ldiahlm(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
 /// Load the value of A in (HL) and decrement HL
 ///
 /// > LDD (HL-) <- A
@@ -331,7 +398,7 @@ pub fn i_ldrd8(vm : &mut Vm, dst : Register) -> Clock {
 }
 
 /// LD (HL) <- immediate Word8
-pub fn i_ldhld8(vm : &mut Vm) -> Clock {
+pub fn i_ldhlmd8(vm : &mut Vm) -> Clock {
     mmu::wb(hl![vm], read_program_byte(vm), &mut vm.mmu);
     Clock { m:2, t:8 }
 }
