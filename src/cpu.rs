@@ -200,7 +200,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
         //0x07 =>
         //0x08 =>
-        //0x09 =>
+        0x09 => mk_inst![vm> "ADDHLBC", i_addhlr16(vm, Register::B, Register::C)],
         0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
         0x0B => mk_inst![vm> "DECBC",   i_decr16(vm, Register::B, Register::C)],
         0x0C => mk_inst![vm> "INCC",    i_incr(vm, Register::C)],
@@ -214,6 +214,9 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x14 => mk_inst![vm> "INCD",    i_incr(vm, Register::D)],
         0x15 => mk_inst![vm> "DECD",    i_decr(vm, Register::D)],
         0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
+        //0x17 =>
+        //0x18 =>
+        0x19 => mk_inst![vm> "ADDHLDE", i_addhlr16(vm, Register::D, Register::E)],
         0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
         0x1B => mk_inst![vm> "DECDE",   i_decr16(vm, Register::D, Register::E)],
         0x1C => mk_inst![vm> "INCE",    i_incr(vm, Register::E)],
@@ -229,7 +232,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
         // 0x27 =>
         // 0x28 =>
-        // 0x29 =>
+        0x29 => mk_inst![vm> "ADDHLHL", i_addhlr16(vm, Register::H, Register::L)],
         0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
         0x2B => mk_inst![vm> "DECHL",   i_decr16(vm, Register::H, Register::L)],
         0x2C => mk_inst![vm> "INCL",    i_incr(vm, Register::L)],
@@ -245,7 +248,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
         // 0x37 =>
         // 0x38 =>
-        // 0x39 =>
+        0x39 => mk_inst![vm> "ADDHLSP", i_addhlsp(vm)],
         0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
         0x3B => mk_inst![vm> "DECSP",   i_decsp(vm)],
         0x3C => mk_inst![vm> "INCA",    i_incr(vm, Register::A)],
@@ -321,6 +324,16 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x7E => mk_inst![vm> "LDAHLm",  i_ldrr16m(vm, Register::A, Register::H, Register::L)],
         0x7F => mk_inst![vm> "LDAA",    i_ldrr(vm, Register::A, Register::A)],
 
+        0x80 => mk_inst![vm> "ADDB",    i_addr(vm, Register::B)],
+        0x81 => mk_inst![vm> "ADDC",    i_addr(vm, Register::C)],
+        0x82 => mk_inst![vm> "ADDD",    i_addr(vm, Register::D)],
+        0x83 => mk_inst![vm> "ADDE",    i_addr(vm, Register::E)],
+        0x84 => mk_inst![vm> "ADDH",    i_addr(vm, Register::H)],
+        0x85 => mk_inst![vm> "ADDL",    i_addr(vm, Register::L)],
+        0x86 => mk_inst![vm> "ADDHLm",  i_addhlm(vm)],
+        0x87 => mk_inst![vm> "ADDA",    i_addr(vm, Register::A)],
+        // ...
+
         0x90 => mk_inst![vm> "SUBB",    i_subr(vm, Register::B)],
         0x91 => mk_inst![vm> "SUBC",    i_subr(vm, Register::C)],
         0x92 => mk_inst![vm> "SUBD",    i_subr(vm, Register::D)],
@@ -359,8 +372,11 @@ pub fn dispatch(opcode : u8) -> Instruction {
 
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
 
+        0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
+
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
 
+        0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
@@ -732,10 +748,10 @@ pub fn i_sub_imp(vm : &mut Vm, value : u8) -> u8 {
     return diff
 }
 
-/// Compare src:Register with A and set the flags Z/H/C.
+/// Substract src:Register to A and set the flags Z/H/C.
 /// Set register N to 1.
 ///
-/// Syntax : `CP src:Register`
+/// Syntax : `SUB src:Register`
 pub fn i_subr(vm : &mut Vm, src : Register) -> Clock {
     let input = reg![vm ; src];
 
@@ -744,10 +760,10 @@ pub fn i_subr(vm : &mut Vm, src : Register) -> Clock {
     Clock { m:1, t:4 }
 }
 
-/// Compare (HL) with A and set the flags Z/H/C.
+/// Substract (HL) to A and set the flags Z/H/C.
 /// Set register N to 1.
 ///
-/// Syntax : `CPHLm`
+/// Syntax : `SUBHLm`
 pub fn i_subhlm(vm : &mut Vm) -> Clock {
     let input = mmu::rb(hl![vm], &mut vm.mmu);
 
@@ -756,14 +772,116 @@ pub fn i_subhlm(vm : &mut Vm) -> Clock {
     Clock { m:1, t:8 }
 }
 
-/// Compare direct Word8 with A and set the flags Z/H/C.
+/// Substract direct Word8 to A and set the flags Z/H/C.
 /// Set register N to 1.
 ///
-/// Syntax : `CPd8`
+/// Syntax : `SUBd8`
 pub fn i_subd8(vm : &mut Vm) -> Clock {
     let input = read_program_byte(vm);
 
     reg![vm ; Register::A] = i_sub_imp(vm, input);
 
     Clock { m:2, t:8 }
+}
+
+/// Implement adding value:u8 to the register A and set the flags
+pub fn i_add_imp(vm : &mut Vm, value : u8) -> u8 {
+    let a = reg![vm ; Register::A];
+    let b = value;
+    let sum = a.wrapping_add(b);
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, sum == 0);
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b) > 0xF);
+    set_flag(vm, Flag::C, (b as u16) + (a as u16) > 0xFF);
+    return sum
+}
+
+/// Add src:Register to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `ADD src:Register`
+pub fn i_addr(vm : &mut Vm, src : Register) -> Clock {
+    let input = reg![vm ; src];
+
+    reg![vm ; Register::A] = i_add_imp(vm, input);
+
+    Clock { m:1, t:4 }
+}
+
+/// Add (HL) to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `ADDHLm`
+pub fn i_addhlm(vm : &mut Vm) -> Clock {
+    let input = mmu::rb(hl![vm], &mut vm.mmu);
+
+    reg![vm ; Register::A] = i_add_imp(vm, input);
+
+    Clock { m:1, t:8 }
+}
+
+/// Add direct Word8 to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPd8`
+pub fn i_addd8(vm : &mut Vm) -> Clock {
+    let input = read_program_byte(vm);
+
+    reg![vm ; Register::A] = i_add_imp(vm, input);
+
+    Clock { m:2, t:8 }
+}
+
+/// Implement 16bits ADD
+///
+/// Set Z H C.
+pub fn i_add_imp16(vm : &mut Vm, a: u16, b : u16) -> u16 {
+    let sum = a + b;
+
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, (0x0FFF & a + 0x0FFF & b) & 0x1000 != 0);
+    set_flag(vm, Flag::C, (b as u32) + (a as u32) > 0xFFFF);
+
+    return sum
+}
+
+/// Add a r16 register to HL
+///
+/// Affect only flags H, N and C.
+pub fn i_addhlr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    let a = hl![vm];
+    let b = get_r16(vm, h, l);
+
+    let sum = i_add_imp16(vm, a, b);
+    set_hl!(vm, sum);
+
+    Clock { m:1, t:8 }
+}
+
+/// Add SP to HL
+///
+/// Affect only flags H, N and C.
+pub fn i_addhlsp(vm : &mut Vm) -> Clock {
+    let a = hl![vm];
+    let b = sp![vm];
+
+    let sum = i_add_imp16(vm, a, b);
+    set_hl!(vm, sum);
+
+    Clock { m:1, t:8 }
+}
+
+/// Add direct Word8 to SP
+///
+/// Affect all flags.
+pub fn i_addspr8(vm : &mut Vm) -> Clock {
+    let a = sp![vm];
+    let b = read_program_byte(vm) as u16;
+
+    reset_flags(vm);
+    let sum = i_add_imp16(vm, a, b);
+    sp![vm] = sum;
+
+    Clock { m:1, t:8 }
 }
