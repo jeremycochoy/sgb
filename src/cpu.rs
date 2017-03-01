@@ -144,13 +144,13 @@ pub struct Cpu {
 
 /// Read a byte from the memory pointed by PC, and increment PC
 pub fn read_program_byte(vm : &mut Vm) -> u8 {
-    pc![vm] += 1;
+    pc![vm] = pc![vm].wrapping_add(1);
     mmu::rb(vm.cpu.registers.pc, &vm.mmu)
 }
 
 /// Read a word (2bytes) from the memory pointed by PC, and increment PC
 pub fn read_program_word(vm : &mut Vm) -> u16 {
-    pc![vm] += 2;
+    pc![vm] = pc![vm].wrapping_add(2);
     mmu::rw(vm.cpu.registers.pc, &vm.mmu)
 }
 
@@ -219,6 +219,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x1C => mk_inst![vm> "INCE",    i_incr(vm, Register::E)],
         0x1D => mk_inst![vm> "DECE",    i_decr(vm, Register::E)],
         0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
+        // 0x1F =>
 
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
         0x22 => mk_inst![vm> "LDIHLmA", i_ldihlma(vm)],
@@ -226,24 +227,31 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x24 => mk_inst![vm> "INCH",    i_incr(vm, Register::H)],
         0x25 => mk_inst![vm> "DECH",    i_decr(vm, Register::H)],
         0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
+        // 0x27 =>
+        // 0x28 =>
+        // 0x29 =>
         0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
         0x2B => mk_inst![vm> "DECHL",   i_decr16(vm, Register::H, Register::L)],
         0x2C => mk_inst![vm> "INCL",    i_incr(vm, Register::L)],
         0x2D => mk_inst![vm> "DECL",    i_decr(vm, Register::L)],
         0x2E => mk_inst![vm> "LDLd8",   i_ldrd8(vm, Register::L)],
+        // 0x2F =>
 
         0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
         0x32 => mk_inst![vm> "LDDHLmA", i_lddhlma(vm)],
         0x33 => mk_inst![vm> "INSP",    i_incsp(vm)],
         0x34 => mk_inst![vm> "INHLm",   i_inchlm(vm)],
         0x35 => mk_inst![vm> "DECHLm",  i_dechlm(vm)],
+        0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
+        // 0x37 =>
+        // 0x38 =>
+        // 0x39 =>
+        0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
         0x3B => mk_inst![vm> "DECSP",   i_decsp(vm)],
         0x3C => mk_inst![vm> "INCA",    i_incr(vm, Register::A)],
         0x3D => mk_inst![vm> "DECA",    i_decr(vm, Register::A)],
-
-        0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
-        0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
         0x3E => mk_inst![vm> "LDAd8",   i_ldrd8(vm, Register::A)],
+        // 0x3F =>
 
         0x40 => mk_inst![vm> "LDBB",    i_ldrr(vm, Register::B, Register::B)],
         0x41 => mk_inst![vm> "LDBC",    i_ldrr(vm, Register::B, Register::C)],
@@ -396,7 +404,7 @@ pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Cl
 pub fn i_ldmod_hla(vm : &mut Vm, modificator : i16) -> Clock {
     mmu::wb(hl![vm], reg![vm ; Register::A], &mut vm.mmu);
 
-    let sum = hl![vm] as i16 + modificator;
+    let sum = (hl![vm] as i16).wrapping_add(modificator);
     set_hl!(vm, sum);
     Clock { m:1, t:8 }
 }
@@ -405,7 +413,7 @@ pub fn i_ldmod_hla(vm : &mut Vm, modificator : i16) -> Clock {
 pub fn i_ldmod_ahl(vm : &mut Vm, modificator : i16) -> Clock {
     reg![vm ; Register::A] = mmu::rb(hl![vm], &mut vm.mmu);
 
-    let sum = hl![vm] as i16 + modificator;
+    let sum = (hl![vm] as i16).wrapping_add(modificator);
     set_hl!(vm, sum);
     Clock { m:1, t:8 }
 }
@@ -556,7 +564,7 @@ pub fn i_inc_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
 /// Syntax : `INC reg:Register`
 pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
     let initial_val = reg![vm ; reg];
-    reg![vm ; reg] += 1;
+    reg![vm ; reg] = reg![vm ; reg].wrapping_add(1);
     let final_val = reg![vm ; reg];
     i_inc_impl(vm, initial_val, final_val);
     Clock { m:1, t:4 }
@@ -568,7 +576,7 @@ pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
 /// Syntax : `INCHL`
 pub fn i_inchlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
-    let final_val = initial_val + 1;
+    let final_val = initial_val.wrapping_add(1);
     mmu::wb(hl![vm], final_val, &mut vm.mmu);
     i_inc_impl(vm, initial_val, final_val);
     Clock { m:1, t:12 }
@@ -580,7 +588,7 @@ pub fn i_inchlm(vm : &mut Vm) -> Clock {
 /// Syntax : `INC hight:Register low:Register`
 pub fn i_incr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     let initial_val = get_r16(vm, h, l);
-    let final_val = initial_val + 1;
+    let final_val = initial_val.wrapping_add(1);
     set_r16(vm, h, l, final_val);
 
     Clock { m:1, t:8 }
@@ -591,7 +599,7 @@ pub fn i_incr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
 ///
 /// Syntax : `INCSP`
 pub fn i_incsp(vm : &mut Vm) -> Clock {
-    sp![vm] += 1;
+    sp![vm] = sp![vm].wrapping_add(1);
 
     Clock { m:1, t:8 }
 }
@@ -611,8 +619,8 @@ pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
 /// Syntax : `DEC reg:Register`
 pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
     let initial_val = reg![vm ; reg];
-    reg![vm ; reg] += 1;
-    let final_val = reg![vm ; reg];
+    let final_val = initial_val.wrapping_sub(1);
+    reg![vm ; reg] = final_val;
     i_dec_impl(vm, initial_val, final_val);
     Clock { m:1, t:4 }
 }
@@ -623,7 +631,7 @@ pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
 /// Syntax : `INCHL`
 pub fn i_dechlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
-    let final_val = initial_val + 1;
+    let final_val = initial_val.wrapping_sub(1);
     mmu::wb(hl![vm], final_val, &mut vm.mmu);
     i_dec_impl(vm, initial_val, final_val);
     Clock { m:1, t:12 }
@@ -635,7 +643,7 @@ pub fn i_dechlm(vm : &mut Vm) -> Clock {
 /// Syntax : `DEC hight:Register low:Register`
 pub fn i_decr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     let initial_val = get_r16(vm, h, l);
-    let final_val = initial_val + 1;
+    let final_val = initial_val.wrapping_sub(1);
     set_r16(vm, h, l, final_val);
 
     Clock { m:1, t:8 }
@@ -646,7 +654,7 @@ pub fn i_decr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
 ///
 /// Syntax : `DECSP`
 pub fn i_decsp(vm : &mut Vm) -> Clock {
-    sp![vm] -= 1;
+    sp![vm] = sp![vm].wrapping_sub(1);
 
     Clock { m:1, t:8 }
 }
