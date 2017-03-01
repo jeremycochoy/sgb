@@ -382,15 +382,19 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xBE => mk_inst![vm> "CPHLm",   i_cphlm(vm)],
         0xBF => mk_inst![vm> "CPA",     i_cpr(vm, Register::A)],
 
+        0xC1 => mk_inst![vm> "POPBC",   i_pop(vm, Register::B, Register::C)],
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
 
         0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
 
+        0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
 
+        0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
+        0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
@@ -1032,4 +1036,25 @@ pub fn i_jrnf(vm : &mut Vm, flag : Flag) -> Clock {
         i_jr(vm);
         Clock { m:2, t:12 }
     }
+}
+
+/// Push a r16 on the stack
+///
+/// Do note affect any register.
+/// Syntax : `PUSH h:Register l:Register`
+pub fn i_push(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    sp![vm] = sp![vm].wrapping_sub(2);
+    mmu::ww(sp![vm], get_r16(vm, h, l), &mut vm.mmu);
+    Clock { m:1, t:16 }
+}
+
+/// Pop a r16 from the stack
+///
+/// Do note affect any register.
+/// Syntax : `PUSH h:Register l:Register`
+pub fn i_pop(vm : &mut Vm, h : Register, l : Register) -> Clock {
+    let value = mmu::rw(sp![vm], &mut vm.mmu);
+    set_r16(vm, h, l, value);
+    sp![vm] = sp![vm].wrapping_add(2);
+    Clock { m:1, t:16 }
 }
