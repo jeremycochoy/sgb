@@ -196,7 +196,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x02 => mk_inst![vm> "LDBCmA",  i_ldr16mr(vm, Register::B, Register::C, Register::A)],
         0x03 => mk_inst![vm> "INCBC",   i_incr16(vm, Register::B, Register::C)],
         0x04 => mk_inst![vm> "INCB",    i_incr(vm, Register::B)],
-        0x05 => mk_inst![vm> "DECb",    i_decr(vm, Register::B)],
+        0x05 => mk_inst![vm> "DECB",    i_decr(vm, Register::B)],
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
         //0x07 =>
         //0x08 =>
@@ -210,18 +210,37 @@ pub fn dispatch(opcode : u8) -> Instruction {
 
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
         0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
+        0x13 => mk_inst![vm> "INCDE",   i_incr16(vm, Register::D, Register::E)],
+        0x14 => mk_inst![vm> "INCD",    i_incr(vm, Register::D)],
+        0x15 => mk_inst![vm> "DECD",    i_decr(vm, Register::D)],
         0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
         0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
+        0x1B => mk_inst![vm> "DECDE",   i_decr16(vm, Register::D, Register::E)],
+        0x1C => mk_inst![vm> "INCE",    i_incr(vm, Register::E)],
+        0x1D => mk_inst![vm> "DECE",    i_decr(vm, Register::E)],
         0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
 
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
         0x22 => mk_inst![vm> "LDIHLmA", i_ldihlma(vm)],
+        0x23 => mk_inst![vm> "INCHL",   i_incr16(vm, Register::H, Register::L)],
+        0x24 => mk_inst![vm> "INCH",    i_incr(vm, Register::H)],
+        0x25 => mk_inst![vm> "DECH",    i_decr(vm, Register::H)],
         0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
         0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
+        0x2B => mk_inst![vm> "DECHL",   i_decr16(vm, Register::H, Register::L)],
+        0x2C => mk_inst![vm> "INCL",    i_incr(vm, Register::L)],
+        0x2D => mk_inst![vm> "DECL",    i_decr(vm, Register::L)],
         0x2E => mk_inst![vm> "LDLd8",   i_ldrd8(vm, Register::L)],
 
         0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
         0x32 => mk_inst![vm> "LDDHLmA", i_lddhlma(vm)],
+        0x33 => mk_inst![vm> "INSP",    i_incsp(vm)],
+        0x34 => mk_inst![vm> "INHLm",   i_inchlm(vm)],
+        0x35 => mk_inst![vm> "DECHLm",  i_dechlm(vm)],
+        0x3B => mk_inst![vm> "DECSP",   i_decsp(vm)],
+        0x3C => mk_inst![vm> "INCA",    i_incr(vm, Register::A)],
+        0x3D => mk_inst![vm> "DECA",    i_decr(vm, Register::A)],
+
         0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
         0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
         0x3E => mk_inst![vm> "LDAd8",   i_ldrd8(vm, Register::A)],
@@ -276,6 +295,23 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x6D => mk_inst![vm> "LDLL",    i_ldrr(vm, Register::L, Register::L)],
         0x6E => mk_inst![vm> "LDLHLm",  i_ldrr16m(vm, Register::L, Register::H, Register::L)],
         0x6F => mk_inst![vm> "LDLA",    i_ldrr(vm, Register::L, Register::A)],
+
+        0x70 => mk_inst![vm> "LDHLmB",  i_ldr16mr(vm, Register::H, Register::L, Register::B)],
+        0x71 => mk_inst![vm> "LDHLmC",  i_ldr16mr(vm, Register::H, Register::L, Register::C)],
+        0x72 => mk_inst![vm> "LDHLmD",  i_ldr16mr(vm, Register::H, Register::L, Register::D)],
+        0x73 => mk_inst![vm> "LDHLmE",  i_ldr16mr(vm, Register::H, Register::L, Register::E)],
+        0x74 => mk_inst![vm> "LDHLmH",  i_ldr16mr(vm, Register::H, Register::L, Register::H)],
+        0x75 => mk_inst![vm> "LDHLmL",  i_ldr16mr(vm, Register::H, Register::L, Register::L)],
+        // 0x76 => HALT
+        0x77 => mk_inst![vm> "LDHLmA",  i_ldr16mr(vm, Register::H, Register::L, Register::A)],
+        0x78 => mk_inst![vm> "LDAB",    i_ldrr(vm, Register::A, Register::B)],
+        0x79 => mk_inst![vm> "LDAC",    i_ldrr(vm, Register::A, Register::C)],
+        0x7A => mk_inst![vm> "LDAD",    i_ldrr(vm, Register::A, Register::D)],
+        0x7B => mk_inst![vm> "LDAE",    i_ldrr(vm, Register::A, Register::E)],
+        0x7C => mk_inst![vm> "LDAH",    i_ldrr(vm, Register::A, Register::H)],
+        0x7D => mk_inst![vm> "LDAL",    i_ldrr(vm, Register::A, Register::L)],
+        0x7E => mk_inst![vm> "LDAHLm",  i_ldrr16m(vm, Register::A, Register::H, Register::L)],
+        0x7F => mk_inst![vm> "LDAA",    i_ldrr(vm, Register::A, Register::A)],
 
         0xA8 => mk_inst![vm> "XORb",    i_xorr(vm, Register::B)],
         0xA9 => mk_inst![vm> "XORc",    i_xorr(vm, Register::C)],
@@ -530,7 +566,7 @@ pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
 /// Always set N to 0.
 ///
 /// Syntax : `INCHL`
-pub fn i_inchl(vm : &mut Vm) -> Clock {
+pub fn i_inchlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
     let final_val = initial_val + 1;
     mmu::wb(hl![vm], final_val, &mut vm.mmu);
@@ -550,6 +586,15 @@ pub fn i_incr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     Clock { m:1, t:8 }
 }
 
+/// Increment the register SP
+/// Leave flags unaffected.
+///
+/// Syntax : `INCSP`
+pub fn i_incsp(vm : &mut Vm) -> Clock {
+    sp![vm] += 1;
+
+    Clock { m:1, t:8 }
+}
 
 /// Implementation of the increment instruction (setting flags)
 pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
@@ -576,7 +621,7 @@ pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
 /// Always set N to 0.
 ///
 /// Syntax : `INCHL`
-pub fn i_dechl(vm : &mut Vm) -> Clock {
+pub fn i_dechlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
     let final_val = initial_val + 1;
     mmu::wb(hl![vm], final_val, &mut vm.mmu);
@@ -596,7 +641,15 @@ pub fn i_decr16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     Clock { m:1, t:8 }
 }
 
-// CP & SUB TODO
+/// Decrement the register SP
+/// Leave flags unaffected.
+///
+/// Syntax : `DECSP`
+pub fn i_decsp(vm : &mut Vm) -> Clock {
+    sp![vm] -= 1;
+
+    Clock { m:1, t:8 }
+}
 
 /// Compare src:Register with A and set the flags Z/H/C.
 /// Set register N to 1.
