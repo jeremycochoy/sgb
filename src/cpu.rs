@@ -389,7 +389,40 @@ pub fn dispatch(opcode : u8) -> Instruction {
 /// Associate to each opcode:u8 it's instruction:Instruction in the 0xCB table
 pub fn dispatch_cb(opcode : u8) -> Instruction {
     match opcode {
-        // 0x00 =>
+        0x40 => mk_inst![vm> "BIT0B",    i_bitr(vm, 0, Register::B)],
+        0x41 => mk_inst![vm> "BIT0C",    i_bitr(vm, 0, Register::C)],
+        0x42 => mk_inst![vm> "BIT0D",    i_bitr(vm, 0, Register::D)],
+        0x43 => mk_inst![vm> "BIT0E",    i_bitr(vm, 0, Register::E)],
+        0x44 => mk_inst![vm> "BIT0H",    i_bitr(vm, 0, Register::H)],
+        0x45 => mk_inst![vm> "BIT0L",    i_bitr(vm, 0, Register::L)],
+        0x46 => mk_inst![vm> "BIT0HLm",  i_bithlm(vm, 0)],
+        0x47 => mk_inst![vm> "BIT0A",    i_bitr(vm, 0, Register::A)],
+        0x48 => mk_inst![vm> "BIT1B",    i_bitr(vm, 1, Register::B)],
+        0x49 => mk_inst![vm> "BIT1C",    i_bitr(vm, 1, Register::C)],
+        0x4A => mk_inst![vm> "BIT1D",    i_bitr(vm, 1, Register::D)],
+        0x4B => mk_inst![vm> "BIT1E",    i_bitr(vm, 1, Register::E)],
+        0x4C => mk_inst![vm> "BIT1H",    i_bitr(vm, 1, Register::H)],
+        0x4D => mk_inst![vm> "BIT1L",    i_bitr(vm, 1, Register::L)],
+        0x4E => mk_inst![vm> "BIT1HLm",  i_bithlm(vm, 1)],
+        0x4F => mk_inst![vm> "BIT1A",    i_bitr(vm, 1, Register::A)],
+
+        0x50 => mk_inst![vm> "BIT2B",    i_bitr(vm, 2, Register::B)],
+        0x51 => mk_inst![vm> "BIT2C",    i_bitr(vm, 2, Register::C)],
+        0x52 => mk_inst![vm> "BIT2D",    i_bitr(vm, 2, Register::D)],
+        0x53 => mk_inst![vm> "BIT2E",    i_bitr(vm, 2, Register::E)],
+        0x54 => mk_inst![vm> "BIT2H",    i_bitr(vm, 2, Register::H)],
+        0x55 => mk_inst![vm> "BIT2L",    i_bitr(vm, 2, Register::L)],
+        0x56 => mk_inst![vm> "BIT2HLm",  i_bithlm(vm, 2)],
+        0x57 => mk_inst![vm> "BIT2A",    i_bitr(vm, 2, Register::A)],
+        0x58 => mk_inst![vm> "BIT3B",    i_bitr(vm, 3, Register::B)],
+        0x59 => mk_inst![vm> "BIT3C",    i_bitr(vm, 3, Register::C)],
+        0x5A => mk_inst![vm> "BIT3D",    i_bitr(vm, 3, Register::D)],
+        0x5B => mk_inst![vm> "BIT3E",    i_bitr(vm, 3, Register::E)],
+        0x5C => mk_inst![vm> "BIT3H",    i_bitr(vm, 3, Register::H)],
+        0x5D => mk_inst![vm> "BIT3L",    i_bitr(vm, 3, Register::L)],
+        0x5E => mk_inst![vm> "BIT3HLm",  i_bithlm(vm, 3)],
+        0x5F => mk_inst![vm> "BIT3A",    i_bitr(vm, 3, Register::A)],
+
         _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:2X} !", opcode)),
     }
 }
@@ -884,4 +917,31 @@ pub fn i_addspr8(vm : &mut Vm) -> Clock {
     sp![vm] = sum;
 
     Clock { m:1, t:8 }
+}
+
+/// Test the bit bit from src.
+///
+/// Affect flags Z,N and H.
+pub fn i_bitr(vm : &mut Vm, bit : usize, src : Register) -> Clock {
+    let bit_value = reg![vm ; src] >> bit & 0x01;
+
+    set_flag(vm, Flag::Z, bit_value == 0x01);
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, true);
+
+    Clock { m:2, t:8 }
+}
+
+/// Test the bit bit from (HL).
+///
+/// Affect flags Z,N and H.
+pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
+    let value = mmu::rb(hl![vm], &vm.mmu);
+    let bit_value = value >> bit & 0x01;
+
+    set_flag(vm, Flag::Z, bit_value == 0x01);
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, true);
+
+    Clock { m:2, t:16 }
 }
