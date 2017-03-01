@@ -330,19 +330,28 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xAE => mk_inst![vm> "XORhlm",  i_xorhlm(vm)],
         0xAF => mk_inst![vm> "XORa",    i_xorr(vm, Register::A)],
 
-        0xB8 => mk_inst![vm> "CPb",     i_cpr(vm, Register::B)],
-        0xB9 => mk_inst![vm> "CPc",     i_cpr(vm, Register::C)],
-        0xBA => mk_inst![vm> "CPd",     i_cpr(vm, Register::D)],
-        0xBB => mk_inst![vm> "CPe",     i_cpr(vm, Register::E)],
-        0xBC => mk_inst![vm> "CPh",     i_cpr(vm, Register::H)],
-        0xBD => mk_inst![vm> "CPl",     i_cpr(vm, Register::L)],
-        0xBE => mk_inst![vm> "CPhlm",   i_cphlm(vm)],
-        0xBF => mk_inst![vm> "CPa",     i_cpr(vm, Register::A)],
+        0xB0 => mk_inst![vm> "ORB",     i_orr(vm, Register::B)],
+        0xB1 => mk_inst![vm> "ORC",     i_orr(vm, Register::C)],
+        0xB2 => mk_inst![vm> "ORD",     i_orr(vm, Register::D)],
+        0xB3 => mk_inst![vm> "ORE",     i_orr(vm, Register::E)],
+        0xB4 => mk_inst![vm> "ORH",     i_orr(vm, Register::H)],
+        0xB5 => mk_inst![vm> "ORL",     i_orr(vm, Register::L)],
+        0xB6 => mk_inst![vm> "ORHLm",   i_orhlm(vm)],
+        0xB7 => mk_inst![vm> "ORA",     i_orr(vm, Register::A)],
+        0xB8 => mk_inst![vm> "CPB",     i_cpr(vm, Register::B)],
+        0xB9 => mk_inst![vm> "CPC",     i_cpr(vm, Register::C)],
+        0xBA => mk_inst![vm> "CPD",     i_cpr(vm, Register::D)],
+        0xBB => mk_inst![vm> "CPE",     i_cpr(vm, Register::E)],
+        0xBC => mk_inst![vm> "CPH",     i_cpr(vm, Register::H)],
+        0xBD => mk_inst![vm> "CPL",     i_cpr(vm, Register::L)],
+        0xBE => mk_inst![vm> "CPHLm",   i_cphlm(vm)],
+        0xBF => mk_inst![vm> "CPA",     i_cpr(vm, Register::A)],
 
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
 
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
+        0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
         _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
@@ -537,8 +546,8 @@ pub fn i_orr(vm : &mut Vm, src : Register) -> Clock {
 }
 
 /// Bitwise OR the register A with (HL) into A
-/// Syntax : `ORHL`
-pub fn i_orhl(vm : &mut Vm) -> Clock {
+/// Syntax : `ORHLm`
+pub fn i_orhlm(vm : &mut Vm) -> Clock {
     i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
     Clock { m:1, t:8 }
 }
@@ -573,7 +582,7 @@ pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
 /// Increment (HL), and set Z, H as expected.
 /// Always set N to 0.
 ///
-/// Syntax : `INCHL`
+/// Syntax : `INCHLm`
 pub fn i_inchlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
     let final_val = initial_val.wrapping_add(1);
@@ -628,7 +637,7 @@ pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
 /// Decrement (HL), and set Z, H as expected.
 /// Always set N to 0.
 ///
-/// Syntax : `INCHL`
+/// Syntax : `INCHLm`
 pub fn i_dechlm(vm : &mut Vm) -> Clock {
     let initial_val = mmu::rb(hl![vm], &vm.mmu);
     let final_val = initial_val.wrapping_sub(1);
@@ -661,6 +670,8 @@ pub fn i_decsp(vm : &mut Vm) -> Clock {
 
 /// Compare src:Register with A and set the flags Z/H/C.
 /// Set register N to 1.
+///
+/// Syntax : `CP src:Register`
 pub fn i_cpr(vm : &mut Vm, src : Register) -> Clock {
     let input = reg![vm ; src];
 
@@ -670,6 +681,10 @@ pub fn i_cpr(vm : &mut Vm, src : Register) -> Clock {
     Clock { m:1, t:4 }
 }
 
+/// Compare (HL) with A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPHLm`
 pub fn i_cphlm(vm : &mut Vm) -> Clock {
     let input = mmu::rb(hl![vm], &mut vm.mmu);
 
@@ -679,6 +694,10 @@ pub fn i_cphlm(vm : &mut Vm) -> Clock {
     Clock { m:1, t:8 }
 }
 
+/// Compare direct Word8 with A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPd8`
 pub fn i_cpd8(vm : &mut Vm) -> Clock {
     let input = read_program_byte(vm);
 
@@ -688,6 +707,7 @@ pub fn i_cpd8(vm : &mut Vm) -> Clock {
     Clock { m:2, t:8 }
 }
 
+/// Implement substracting value:u8 to the register A and set the flags
 pub fn i_sub_imp(vm : &mut Vm, value : u8) -> u8 {
     let a = reg![vm ; Register::A];
     let b = value;
