@@ -321,6 +321,16 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x7E => mk_inst![vm> "LDAHLm",  i_ldrr16m(vm, Register::A, Register::H, Register::L)],
         0x7F => mk_inst![vm> "LDAA",    i_ldrr(vm, Register::A, Register::A)],
 
+        0x90 => mk_inst![vm> "SUBB",    i_subr(vm, Register::B)],
+        0x91 => mk_inst![vm> "SUBC",    i_subr(vm, Register::C)],
+        0x92 => mk_inst![vm> "SUBD",    i_subr(vm, Register::D)],
+        0x93 => mk_inst![vm> "SUBE",    i_subr(vm, Register::E)],
+        0x94 => mk_inst![vm> "SUBH",    i_subr(vm, Register::H)],
+        0x95 => mk_inst![vm> "SUBL",    i_subr(vm, Register::L)],
+        0x96 => mk_inst![vm> "SUBHLm",  i_subhlm(vm)],
+        0x97 => mk_inst![vm> "SUBA",    i_subr(vm, Register::A)],
+        // ...
+
         0xA8 => mk_inst![vm> "XORb",    i_xorr(vm, Register::B)],
         0xA9 => mk_inst![vm> "XORc",    i_xorr(vm, Register::C)],
         0xAA => mk_inst![vm> "XORd",    i_xorr(vm, Register::D)],
@@ -348,6 +358,8 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xBF => mk_inst![vm> "CPA",     i_cpr(vm, Register::A)],
 
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
+
+        0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
 
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
@@ -718,4 +730,40 @@ pub fn i_sub_imp(vm : &mut Vm, value : u8) -> u8 {
     set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b) > 0xF);
     set_flag(vm, Flag::C, b > a);
     return diff
+}
+
+/// Compare src:Register with A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CP src:Register`
+pub fn i_subr(vm : &mut Vm, src : Register) -> Clock {
+    let input = reg![vm ; src];
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input);
+
+    Clock { m:1, t:4 }
+}
+
+/// Compare (HL) with A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPHLm`
+pub fn i_subhlm(vm : &mut Vm) -> Clock {
+    let input = mmu::rb(hl![vm], &mut vm.mmu);
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input);
+
+    Clock { m:1, t:8 }
+}
+
+/// Compare direct Word8 with A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPd8`
+pub fn i_subd8(vm : &mut Vm) -> Clock {
+    let input = read_program_byte(vm);
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input);
+
+    Clock { m:2, t:8 }
 }
