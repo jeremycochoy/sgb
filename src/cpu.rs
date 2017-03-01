@@ -73,6 +73,16 @@ macro_rules! hl {
     );
 }
 
+/// Macro for acessing HL as a u16
+/// (it's read only).
+///
+/// Syntax : `hl![vm]`
+macro_rules! flag {
+    [$vm:expr ; $flag:expr] => {{
+        0x01 & reg![$vm ; Register::F] << ($flag as usize) == 0x01
+    }}
+}
+
 /// Macro for setting a u16 value into the register h:l
 /// (the juxtaposition of the two registers)
 macro_rules! set_hl {
@@ -215,7 +225,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x15 => mk_inst![vm> "DECD",    i_decr(vm, Register::D)],
         0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
         //0x17 =>
-        //0x18 =>
+        0x18 => mk_inst![vm> "JR",      i_jr(vm)],
         0x19 => mk_inst![vm> "ADDHLDE", i_addhlr16(vm, Register::D, Register::E)],
         0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
         0x1B => mk_inst![vm> "DECDE",   i_decr16(vm, Register::D, Register::E)],
@@ -224,6 +234,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
         // 0x1F =>
 
+        0x20 => mk_inst![vm> "JRnfZ",   i_jrnf(vm, Flag::Z)],
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
         0x22 => mk_inst![vm> "LDIHLmA", i_ldihlma(vm)],
         0x23 => mk_inst![vm> "INCHL",   i_incr16(vm, Register::H, Register::L)],
@@ -231,7 +242,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x25 => mk_inst![vm> "DECH",    i_decr(vm, Register::H)],
         0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
         // 0x27 =>
-        // 0x28 =>
+        0x28 => mk_inst![vm> "JRfZ",    i_jrf(vm, Flag::Z)],
         0x29 => mk_inst![vm> "ADDHLHL", i_addhlr16(vm, Register::H, Register::L)],
         0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
         0x2B => mk_inst![vm> "DECHL",   i_decr16(vm, Register::H, Register::L)],
@@ -240,6 +251,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x2E => mk_inst![vm> "LDLd8",   i_ldrd8(vm, Register::L)],
         // 0x2F =>
 
+        0x30 => mk_inst![vm> "JRnfC",   i_jrnf(vm, Flag::C)],
         0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
         0x32 => mk_inst![vm> "LDDHLmA", i_lddhlma(vm)],
         0x33 => mk_inst![vm> "INSP",    i_incsp(vm)],
@@ -247,7 +259,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x35 => mk_inst![vm> "DECHLm",  i_dechlm(vm)],
         0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
         // 0x37 =>
-        // 0x38 =>
+        0x38 => mk_inst![vm> "JRfZ",    i_jrf(vm, Flag::C)],
         0x39 => mk_inst![vm> "ADDHLSP", i_addhlsp(vm)],
         0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
         0x3B => mk_inst![vm> "DECSP",   i_decsp(vm)],
@@ -978,4 +990,46 @@ pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
     set_flag(vm, Flag::H, true);
 
     Clock { m:2, t:16 }
+}
+
+/// Jump of the length given in direct Word8
+///
+/// Syntax : `JR`
+pub fn i_jr(vm : &mut Vm) -> Clock {
+    let byte = read_program_byte(vm);
+    if byte > 0x7F {
+        pc![vm] = pc![vm].wrapping_add(byte as u16)
+    }
+    else {
+        pc![vm] = pc![vm].wrapping_sub((0xFF - byte + 1) as u16)
+    }
+    Clock { m:2, t:12 }
+}
+
+/// Jump of the length given in direct Word8 if flag:Flag is set
+///
+/// Syntax : `JRf flag:Flag`
+pub fn i_jrf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        i_jr(vm);
+        Clock { m:2, t:12 }
+    }
+    else {
+        read_program_byte(vm);
+        Clock { m:2, t:8 }
+    }
+}
+
+/// Jump of the length given in direct Word8 if flag:Flag is not set
+///
+/// Syntax : `JRnf flag:Flag`
+pub fn i_jrnf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        read_program_byte(vm);
+        Clock { m:2, t:8 }
+    }
+    else {
+        i_jr(vm);
+        Clock { m:2, t:12 }
+    }
 }
