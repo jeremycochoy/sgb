@@ -130,9 +130,9 @@ pub fn set_r16(vm : &mut Vm, h : Register, l : Register, value : u16) {
 /// Represent a 'time' enlapsed
 pub struct Clock {
     /// Length in byte of the last instruction
-    m : u32,
+    m : u64,
     /// Duration in cycles
-    t : u32,
+    t : u64,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -188,6 +188,10 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     let clock = (fct)(vm);
     println!("0x{:04x}:{}\t{:?}", pc![vm], name, clock);
+
+    // Update CPU's clock
+    vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
+    vm.cpu.clock.t = vm.cpu.clock.m.wrapping_add(clock.t);
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     //update_gpu_mode(&mut vm.gpu, clock.t);

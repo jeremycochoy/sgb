@@ -21,31 +21,33 @@ use tools::*;
 use gpu::*;
 
 #[derive(PartialEq, Eq, Debug)]
-// The MMU (memory)
+/// The MMU (memory)
 pub struct Mmu {
-    // GB Bios
+    /// GB Bios
     pub bios  : Vec<u8>,
-    // 0000-3FFF    16KB ROM Bank 00
+    /// 0000-3FFF    16KB ROM Bank 00
     pub rom   : Vec<u8>,
-    // 4000-7FFF    16KB ROM Bank 01
+    /// 4000-7FFF    16KB ROM Bank 01
     pub srom  : Vec<u8>,
-    // A000-BFFF    8KB External RAM
+    /// 8000-9FFF   Video RAM
+    pub vram  : Vec<u8>,
+    /// A000-BFFF    8KB External RAM
     pub eram  : Vec<u8>,
-    // C000-CFFF    4KB Work RAM Bank 0 (WRAM)
+    /// C000-CFFF    4KB Work RAM Bank 0 (WRAM)
     pub wram  : Vec<u8>,
-    // D000-DFFF    4KB Work RAM Bank 1 (WRAM)
+    /// D000-DFFF    4KB Work RAM Bank 1 (WRAM)
     pub swram : Vec<u8>,
-    // FE00-FE9F    Sprite Attribute Table (OAM)
+    /// FE00-FE9F    Sprite Attribute Table (OAM)
     pub oam   : Vec<u8>,
-    // FF80-FFFE    High RAM (HRAM)
+    /// FF80-FFFE    High RAM (HRAM)
     pub hram  : Vec<u8>,
-    // FFFF         Interrupt Enable Register
+    /// FFFF         Interrupt Enable Register
     pub ier   : u8,
-    // When true, reading below 0x100 access the bios.
-    // Once the booting sequence is finished, the value is
-    // turned to false. Then, rading below 0x100 read bytes from the rom field.
+    /// When true, reading below 0x100 access the bios.
+    /// Once the booting sequence is finished, the value is
+    /// turned to false. Then, rading below 0x100 read bytes from the rom field.
     pub bios_enabled : bool,
-    // The gpu data
+    /// The gpu data
     pub gpu   : Gpu,
 }
 
@@ -71,6 +73,7 @@ impl Default for Mmu {
         ],
         rom   : empty_memory(0x0000..0x4000),
         srom  : empty_memory(0x4000..0x8000),
+        vram  : empty_memory(0x8000..0xF000),
         eram  : empty_memory(0xA000..0xC000),
         wram  : empty_memory(0xC000..0xD000),
         swram : empty_memory(0xD000..0xE000),
@@ -86,6 +89,8 @@ impl Default for Mmu {
 /// Read a byte from MMU (TODO)
 pub fn rb(addr : u16, mmu : &Mmu) -> u8 {
     let addr = addr as usize;
+    // TODO Check if memory (vram / OAM) is acessible
+    // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
         0x0000...0x00FF => if mmu.bios_enabled {mmu.bios[addr]}
         else {
@@ -93,7 +98,7 @@ pub fn rb(addr : u16, mmu : &Mmu) -> u8 {
         },
         0x0100...0x3FFF => mmu.rom[addr],
         0x4000...0x7FFF => mmu.srom[addr - 0x4000],
-        0x8000...0x9FFF => mmu.gpu.vram[addr - 0x8000],
+        0x8000...0x9FFF => mmu.vram[addr - 0x8000],
         0xA000...0xBFFF => mmu.eram[addr - 0xA000],
         0xC000...0xCFFF => mmu.wram[addr - 0xC000],
         0xD000...0xDFFF => mmu.swram[addr - 0xD000],
@@ -116,9 +121,11 @@ pub fn rw(addr : u16, mmu : &Mmu) -> u16 {
 /// Write a byte to the MMU at address addr (TODO)
 pub fn wb(addr : u16, value : u8, mmu : &mut Mmu) {
     let addr = addr as usize;
+    // TODO Check if memory (vram / OAM) is acessible
+    // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
         0x0000...0x7FFF => return, // ROM is Read Only
-        0x8000...0x9FFF => mmu.gpu.vram[addr - 0x8000] = value,
+        0x8000...0x9FFF => mmu.vram[addr - 0x8000] = value,
         0xA000...0xBFFF => mmu.eram[addr - 0xA000] = value,
         0xC000...0xCFFF => mmu.wram[addr - 0xC000] = value,
         0xD000...0xDFFF => mmu.swram[addr - 0xD000] = value,
