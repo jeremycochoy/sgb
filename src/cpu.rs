@@ -187,7 +187,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     let clock = (fct)(vm);
-    println!("0x{:02x}:{}\t{:?}", opcode, name, clock);
+    println!("0x{:04x}:{}\t{:?}", pc![vm], name, clock);
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     //update_gpu_mode(&mut vm.gpu, clock.t);
@@ -211,7 +211,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x05 => mk_inst![vm> "DECB",    i_decr(vm, Register::B)],
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
         //0x07 =>
-        0x08 => mk_inst![vm> "LDa16SP", i_lda16sp(vm)],
+        0x08 => mk_inst![vm> "LDa16mSP",i_lda16msp(vm)],
         0x09 => mk_inst![vm> "ADDHLBC", i_addhlr16(vm, Register::B, Register::C)],
         0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
         0x0B => mk_inst![vm> "DECBC",   i_decr16(vm, Register::B, Register::C)],
@@ -409,6 +409,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
+        0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
         0xF0 => mk_inst![vm> "LDHAa8m", i_ldhaa8m(vm)],
@@ -416,6 +417,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF2 => mk_inst![vm> "LDACm",   i_ldacm(vm)],
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
+        0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
         _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
@@ -541,7 +543,7 @@ pub fn i_ldrr16m(vm : &mut Vm, dst : Register, h : Register, l : Register) -> Cl
 
 /// Same as LD, but alow to use (h:l) on the left side
 ///
-/// Syntax : `LDhlr vm:Vm h:Register l:Register`
+/// Syntax : `LDr16mr vm:Vm h:Register l:Register`
 ///
 /// > LDr16mr (h:l) <- Register
 pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Clock {
@@ -646,21 +648,21 @@ pub fn i_ldhlmd8(vm : &mut Vm) -> Clock {
 }
 
 /// LD (a16) <- a where a16 means the next Word16 as an address
-pub fn i_lda16a(vm : &mut Vm) -> Clock {
+pub fn i_lda16ma(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
     mmu::wb(a16, reg![vm ; Register::A], &mut vm.mmu);
     Clock { m:3, t:12 }
 }
 
 /// LD a <- (a16) where a16 means the next Word16 as an address
-pub fn i_ldaa16(vm : &mut Vm) -> Clock {
+pub fn i_ldaa16m(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
     reg![vm ; Register::A] = mmu::rb(a16, &vm.mmu);
     Clock { m:3, t:12 }
 }
 
 /// LD (a16) <- SP where a16 means the next Word16 as an address
-pub fn i_lda16sp(vm : &mut Vm) -> Clock {
+pub fn i_lda16msp(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
     mmu::ww(a16, sp![vm], &mut vm.mmu);
     Clock { m:3, t:20 }
@@ -673,19 +675,6 @@ pub fn i_ldr16d16(vm : &mut Vm, h : Register, l : Register) -> Clock {
     Clock { m:3, t:12 }
 }
 
-/// LD (a8) <- a where a8 means the next Word8 + 0xFF00 as an address
-pub fn i_lda8a(vm : &mut Vm) -> Clock {
-    let a8 = read_program_byte(vm);
-    mmu::wb(a8 as u16 + 0xFF00, reg![vm ; Register::A], &mut vm.mmu);
-    Clock { m:3, t:12 }
-}
-
-/// LD a <- (a8) where a8 means the next Word8 + 0xFF00 as an address
-pub fn i_ldaa8(vm : &mut Vm) -> Clock {
-    let a8 = read_program_byte(vm);
-    reg![vm ; Register::A] = mmu::rb(a8 as u16 + 0xFF00, &vm.mmu);
-    Clock { m:3, t:12 }
-}
 
 /// LD SP <- d16 where d16 means direct Word8 value
 pub fn i_ldspd16(vm : &mut Vm) -> Clock {
