@@ -6,5 +6,5 @@ pub struct Gpu {
 }
 
 impl Default for Gpu {
-    fn default() -> Gpu { Gpu { vram : empty_memory(0x8000 .. 0x9FFF) } }
+    fn default() -> Gpu { Gpu { vram : empty_memory(0x8000 .. 0xF000) } }
 }

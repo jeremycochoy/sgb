@@ -10,11 +10,11 @@ use std::boxed::Box;
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct Registers {
         // Registers (a, b, c, d, e, h, l, f) :
-        rs : [u8 ; 8],
+        pub rs : [u8 ; 8],
         // Program counter
-        pc : u16,
+        pub pc : u16,
         // Stack pointer
-        sp : u16,
+        pub sp : u16,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -58,7 +58,7 @@ macro_rules! pc {
 ///
 /// Syntax : `sp![vm]`
 macro_rules! sp {
-    [$vm:expr] => ($vm.cpu.registers.pc);
+    [$vm:expr] => ($vm.cpu.registers.sp);
 }
 
 /// Macro for acessing HL as a u16
@@ -79,7 +79,7 @@ macro_rules! hl {
 /// Syntax : `hl![vm]`
 macro_rules! flag {
     [$vm:expr ; $flag:expr] => {{
-        0x01 & reg![$vm ; Register::F] << ($flag as usize) == 0x01
+        0x01 & reg![$vm ; Register::F] >> ($flag as usize) == 0x01
     }}
 }
 
@@ -154,14 +154,16 @@ pub struct Cpu {
 
 /// Read a byte from the memory pointed by PC, and increment PC
 pub fn read_program_byte(vm : &mut Vm) -> u8 {
+    let byte = mmu::rb(pc![vm], &vm.mmu);
     pc![vm] = pc![vm].wrapping_add(1);
-    mmu::rb(vm.cpu.registers.pc, &vm.mmu)
+    return byte;
 }
 
 /// Read a word (2bytes) from the memory pointed by PC, and increment PC
 pub fn read_program_word(vm : &mut Vm) -> u16 {
+    let word = mmu::rw(pc![vm], &vm.mmu);
     pc![vm] = pc![vm].wrapping_add(2);
-    mmu::rw(vm.cpu.registers.pc, &vm.mmu)
+    return word;
 }
 
 /// Store a CPU's instruction, that is a string describing the assembly instruction, and the *function pointer*
@@ -185,7 +187,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     let clock = (fct)(vm);
-    println!("{:?} {}", clock, name);
+    println!("{:02x}:{:?} {}", opcode, clock, name);
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     //update_gpu_mode(&mut vm.gpu, clock.t);
@@ -209,7 +211,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x05 => mk_inst![vm> "DECB",    i_decr(vm, Register::B)],
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
         //0x07 =>
-        //0x08 =>
+        0x08 => mk_inst![vm> "LDa16SP", i_lda16sp(vm)],
         0x09 => mk_inst![vm> "ADDHLBC", i_addhlr16(vm, Register::B, Register::C)],
         0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
         0x0B => mk_inst![vm> "DECBC",   i_decr16(vm, Register::B, Register::C)],
@@ -383,18 +385,26 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xBF => mk_inst![vm> "CPA",     i_cpr(vm, Register::A)],
 
         0xC1 => mk_inst![vm> "POPBC",   i_pop(vm, Register::B, Register::C)],
-        0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
-
+        0xC4 => mk_inst![vm> "CALLnZ",  i_callnf(vm, Flag::Z)],
+        0xC5 => mk_inst![vm> "PUSHBC",  i_push(vm, Register::B, Register::C)],
         0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
+        0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
+        0xCC => mk_inst![vm> "CALLZ",   i_callf(vm, Flag::Z)],
+        0xCD => mk_inst![vm> "CALL",    i_call(vm)],
 
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
+        0xD4 => mk_inst![vm> "CALLnC",  i_callnf(vm, Flag::C)],
+        0xD5 => mk_inst![vm> "PUSHDE",  i_push(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
+        0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
 
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
+        0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
         0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
+        0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
@@ -521,19 +531,19 @@ pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Cl
 }
 
 /// Implementation for LD[I|D] (HL) A
-pub fn i_ldmod_hla(vm : &mut Vm, modificator : i16) -> Clock {
+pub fn i_ldmod_hlma(vm : &mut Vm, modificator : i16) -> Clock {
     mmu::wb(hl![vm], reg![vm ; Register::A], &mut vm.mmu);
 
-    let sum = (hl![vm] as i16).wrapping_add(modificator);
-    set_hl!(vm, sum);
+    let sum = hl![vm].wrapping_add(modificator as u16);
+    set_hl!(vm, sum as u16);
     Clock { m:1, t:8 }
 }
 
 /// Implementation for LD[I|D] A (HL)
-pub fn i_ldmod_ahl(vm : &mut Vm, modificator : i16) -> Clock {
+pub fn i_ldmod_ahlm(vm : &mut Vm, modificator : i16) -> Clock {
     reg![vm ; Register::A] = mmu::rb(hl![vm], &mut vm.mmu);
 
-    let sum = (hl![vm] as i16).wrapping_add(modificator);
+    let sum = hl![vm].wrapping_add(modificator as u16);
     set_hl!(vm, sum);
     Clock { m:1, t:8 }
 }
@@ -541,19 +551,22 @@ pub fn i_ldmod_ahl(vm : &mut Vm, modificator : i16) -> Clock {
 /// Load the value of A in (HL) and increment HL
 ///
 /// > LDI (HL+) <- A
-pub fn i_ldihlma(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
+pub fn i_ldihlma(vm : &mut Vm) -> Clock {i_ldmod_hlma(vm, 1)}
+
 /// Load the value of (HL) in A and increment HL
 ///
 /// > LDI A <- (HL+)
-pub fn i_ldiahlm(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, 1)}
+pub fn i_ldiahlm(vm : &mut Vm) -> Clock {i_ldmod_ahlm(vm, 1)}
+
 /// Load the value of A in (HL) and decrement HL
 ///
 /// > LDD (HL-) <- A
-pub fn i_lddhlma(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
+pub fn i_lddhlma(vm : &mut Vm) -> Clock {i_ldmod_hlma(vm, -1)}
+
 /// Load the value of (HL) in A and decrement HL
 ///
 /// > LDD A <- (HL-)
-pub fn i_lddahlm(vm : &mut Vm) -> Clock {i_ldmod_hla(vm, -1)}
+pub fn i_lddahlm(vm : &mut Vm) -> Clock {i_ldmod_ahlm(vm, -1)}
 
 /// LD Register <- immediate Word8
 pub fn i_ldrd8(vm : &mut Vm, dst : Register) -> Clock {
@@ -579,6 +592,13 @@ pub fn i_ldaa16(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
     reg![vm ; Register::A] = mmu::rb(a16, &vm.mmu);
     Clock { m:3, t:12 }
+}
+
+/// LD (a16) <- SP where a16 means the next Word16 as an address
+pub fn i_lda16sp(vm : &mut Vm) -> Clock {
+    let a16 = read_program_word(vm);
+    mmu::ww(a16, sp![vm], &mut vm.mmu);
+    Clock { m:3, t:20 }
 }
 
 /// LD r16 <- d16 where d16 means direct Word8 value
@@ -975,7 +995,8 @@ pub fn i_addspr8(vm : &mut Vm) -> Clock {
 pub fn i_bitr(vm : &mut Vm, bit : usize, src : Register) -> Clock {
     let bit_value = reg![vm ; src] >> bit & 0x01;
 
-    set_flag(vm, Flag::Z, bit_value == 0x01);
+    println!("Set FLAG!!!! {:02x}", reg![vm ; Register::F]);
+    set_flag(vm, Flag::Z, bit_value == 0);
     set_flag(vm, Flag::N, false);
     set_flag(vm, Flag::H, true);
 
@@ -989,7 +1010,7 @@ pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
     let value = mmu::rb(hl![vm], &vm.mmu);
     let bit_value = value >> bit & 0x01;
 
-    set_flag(vm, Flag::Z, bit_value == 0x01);
+    set_flag(vm, Flag::Z, bit_value == 0);
     set_flag(vm, Flag::N, false);
     set_flag(vm, Flag::H, true);
 
@@ -1001,10 +1022,12 @@ pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
 /// Syntax : `JR`
 pub fn i_jr(vm : &mut Vm) -> Clock {
     let byte = read_program_byte(vm);
-    if byte > 0x7F {
+    println!("HL={:02x}", hl![vm]);
+    println!("Z={}", reg![vm ; Register::F] & Flag::Z as u8);
+    if byte <= 0x7F {println!("JP {}!!!", byte as u16);
         pc![vm] = pc![vm].wrapping_add(byte as u16)
     }
-    else {
+    else {println!("JP -{}!!!", (0xFF - byte + 1) as u16);
         pc![vm] = pc![vm].wrapping_sub((0xFF - byte + 1) as u16)
     }
     Clock { m:2, t:12 }
@@ -1057,4 +1080,50 @@ pub fn i_pop(vm : &mut Vm, h : Register, l : Register) -> Clock {
     set_r16(vm, h, l, value);
     sp![vm] = sp![vm].wrapping_add(2);
     Clock { m:1, t:16 }
+}
+
+/// Call a function at addr a16
+///
+/// Actualy push PC on the stack and load a16 into PC
+/// Syntax : `CALL`
+pub fn i_call(vm : &mut Vm) -> Clock {
+    let a16 = read_program_word(vm);
+
+    // Push PC on the stack
+    sp![vm] = sp![vm].wrapping_sub(2);
+    mmu::ww(sp![vm], pc![vm], &mut vm.mmu);
+
+    // Update PC
+    pc![vm] = a16;
+    Clock { m:3, t:24 }
+}
+
+/// Call a function at addr a16 if flag is set
+///
+/// Actualy push PC on the stack and load a16 into PC
+/// Syntax : `CALL flag:Flag`
+pub fn i_callf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        i_call(vm);
+        Clock { m:3, t:24 }
+    }
+    else {
+        read_program_word(vm);
+        Clock { m:3, t:12 }
+    }
+}
+
+/// Call a function at addr a16 if flag is not set
+///
+/// Actualy push PC on the stack and load a16 into PC
+/// Syntax : `CALL flag:Flag`
+pub fn i_callnf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        read_program_word(vm);
+        Clock { m:3, t:12 }
+    }
+    else {
+        i_call(vm);
+        Clock { m:3, t:24 }
+    }
 }
