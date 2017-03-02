@@ -226,7 +226,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x14 => mk_inst![vm> "INCD",    i_incr(vm, Register::D)],
         0x15 => mk_inst![vm> "DECD",    i_decr(vm, Register::D)],
         0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
-        //0x17 =>
+        0x17 => mk_inst![vm> "RLA",     {i_rl(vm, Register::A) ; Clock { m:1, t:4}}],
         0x18 => mk_inst![vm> "JR",      i_jr(vm)],
         0x19 => mk_inst![vm> "ADDHLDE", i_addhlr16(vm, Register::D, Register::E)],
         0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
@@ -419,6 +419,16 @@ pub fn dispatch(opcode : u8) -> Instruction {
 /// Associate to each opcode:u8 it's instruction:Instruction in the 0xCB table
 pub fn dispatch_cb(opcode : u8) -> Instruction {
     match opcode {
+        0x10 => mk_inst![vm> "RLB",     i_rl(vm, Register::B)],
+        0x11 => mk_inst![vm> "RLC",     i_rl(vm, Register::C)],
+        0x12 => mk_inst![vm> "RLD",     i_rl(vm, Register::D)],
+        0x13 => mk_inst![vm> "RLE",     i_rl(vm, Register::E)],
+        0x14 => mk_inst![vm> "RLH",     i_rl(vm, Register::H)],
+        0x15 => mk_inst![vm> "RLL",     i_rl(vm, Register::L)],
+        0x16 => mk_inst![vm> "RLHLm",   i_rlhlm(vm)],
+        0x17 => mk_inst![vm> "RLA",     i_rl(vm, Register::A)],
+        //...
+
         0x40 => mk_inst![vm> "BIT0B",    i_bitr(vm, 0, Register::B)],
         0x41 => mk_inst![vm> "BIT0C",    i_bitr(vm, 0, Register::C)],
         0x42 => mk_inst![vm> "BIT0D",    i_bitr(vm, 0, Register::D)],
@@ -1175,4 +1185,43 @@ pub fn i_callnf(vm : &mut Vm, flag : Flag) -> Clock {
         i_call(vm);
         Clock { m:3, t:24 }
     }
+}
+
+/// Implementation of RL
+pub fn i_rl_imp(value : u8, vm : &mut Vm) -> u8 {
+    let carry = flag![vm ; Flag::C] as u8;
+    let result = (value << 1) | carry;
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, (value & 0x80) != 0); // Take value's bit 7
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Rotate Left through carry
+///
+/// Rotate the value in register reg 1 bit left.
+/// Bit 7 goes in carry, and carry goes at reg's 0 bit.
+///
+/// Syntax : `RL reg:Register`
+pub fn i_rl(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_rl_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Rotate Left through carry
+///
+/// Rotate the value in (HL) 1 bit left.
+/// Bit 7 goes in carry, and carry goes at (HL)'s 0 bit.
+///
+/// Syntax : `RLHLm`
+pub fn i_rlhlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], &vm.mmu);
+    let result = i_rl_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, &mut vm.mmu);
+
+    Clock { m:2, t:16 }
 }
