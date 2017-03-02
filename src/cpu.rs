@@ -398,12 +398,16 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
 
+        0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
+        0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
+        0xF0 => mk_inst![vm> "LDHAa8m", i_ldhaa8m(vm)],
         0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
+        0xF2 => mk_inst![vm> "LDACm",   i_ldacm(vm)],
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
@@ -528,6 +532,51 @@ pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Cl
     let addr = get_r16(vm, h, l);
     mmu::wb(addr, reg![vm ; src], &mut vm.mmu);
     Clock { m:1, t:8 }
+}
+
+/// Store the value of A into (0xFF00 + C)
+///
+/// Syntax : `LDCmA vm:Vm`
+///
+/// > LDCmA (0xFF00 + C) <- A
+pub fn i_ldcma(vm : &mut Vm) -> Clock {
+    let addr = 0xFF00 + reg![vm ; Register::C] as u16;
+    mmu::wb(addr, reg![vm ; Register::A], &mut vm.mmu);
+    Clock { m:1, t:8 }
+}
+
+/// Store the value of (0xFF00 + C) into A
+///
+/// Syntax : `LDACm vm:Vm`
+///
+/// > LDACm A <- (0xFF00 + C)
+pub fn i_ldacm(vm : &mut Vm) -> Clock {
+    let addr = 0xFF00 + reg![vm ; Register::C] as u16;
+    reg![vm ; Register::A] = mmu::rb(addr, &mut vm.mmu);
+    Clock { m:1, t:8 }
+}
+
+
+/// Store the value of A into (0xFF00 + a8)
+///
+/// Syntax : `LDHa8mA vm:Vm`
+///
+/// > LDH (0xFF00 + a8) <- A
+pub fn i_ldha8ma(vm : &mut Vm) -> Clock {
+    let addr = 0xFF00 + read_program_byte(vm) as u16;
+    mmu::wb(addr, reg![vm ; Register::A], &mut vm.mmu);
+    Clock { m:2, t:12 }
+}
+
+/// Store the value of (0xFF00 + a8) into A
+///
+/// Syntax : `LDHAa8m vm:Vm`
+///
+/// > LDH A <- (0xFF00 + a8)
+pub fn i_ldhaa8m(vm : &mut Vm) -> Clock {
+    let addr = 0xFF00 + read_program_byte(vm) as u16;
+    reg![vm ; Register::A] = mmu::rb(addr, &mut vm.mmu);
+    Clock { m:2, t:12 }
 }
 
 /// Implementation for LD[I|D] (HL) A
