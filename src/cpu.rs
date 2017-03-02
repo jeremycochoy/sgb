@@ -187,7 +187,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     let clock = (fct)(vm);
-    println!("{:02x}:{:?} {}", opcode, clock, name);
+    println!("0x{:02x}:{}\t{:?}", opcode, name, clock);
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     //update_gpu_mode(&mut vm.gpu, clock.t);
@@ -384,18 +384,24 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xBE => mk_inst![vm> "CPHLm",   i_cphlm(vm)],
         0xBF => mk_inst![vm> "CPA",     i_cpr(vm, Register::A)],
 
+        0xC0 => mk_inst![vm> "RETNZ",   i_retnf(vm, Flag::Z)],
         0xC1 => mk_inst![vm> "POPBC",   i_pop(vm, Register::B, Register::C)],
         0xC4 => mk_inst![vm> "CALLnZ",  i_callnf(vm, Flag::Z)],
         0xC5 => mk_inst![vm> "PUSHBC",  i_push(vm, Register::B, Register::C)],
         0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
+        0xC8 => mk_inst![vm> "RETZ",    i_retf(vm, Flag::Z)],
+        0xC9 => mk_inst![vm> "RET",     i_ret(vm)],
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
         0xCC => mk_inst![vm> "CALLZ",   i_callf(vm, Flag::Z)],
         0xCD => mk_inst![vm> "CALL",    i_call(vm)],
 
+        0xD0 => mk_inst![vm> "RETNC",   i_retnf(vm, Flag::C)],
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
         0xD4 => mk_inst![vm> "CALLnC",  i_callnf(vm, Flag::C)],
         0xD5 => mk_inst![vm> "PUSHDE",  i_push(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
+        0xD8 => mk_inst![vm> "RETC",    i_retf(vm, Flag::C)],
+        0xD9 => mk_inst![vm> "RETI",    i_reti(vm)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
 
         0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
@@ -1054,7 +1060,6 @@ pub fn i_addspr8(vm : &mut Vm) -> Clock {
 pub fn i_bitr(vm : &mut Vm, bit : usize, src : Register) -> Clock {
     let bit_value = reg![vm ; src] >> bit & 0x01;
 
-    println!("Set FLAG!!!! {:02x}", reg![vm ; Register::F]);
     set_flag(vm, Flag::Z, bit_value == 0);
     set_flag(vm, Flag::N, false);
     set_flag(vm, Flag::H, true);
@@ -1081,12 +1086,10 @@ pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
 /// Syntax : `JR`
 pub fn i_jr(vm : &mut Vm) -> Clock {
     let byte = read_program_byte(vm);
-    println!("HL={:02x}", hl![vm]);
-    println!("Z={}", reg![vm ; Register::F] & Flag::Z as u8);
-    if byte <= 0x7F {println!("JP {}!!!", byte as u16);
+    if byte <= 0x7F {
         pc![vm] = pc![vm].wrapping_add(byte as u16)
     }
-    else {println!("JP -{}!!!", (0xFF - byte + 1) as u16);
+    else {
         pc![vm] = pc![vm].wrapping_sub((0xFF - byte + 1) as u16)
     }
     Clock { m:2, t:12 }
@@ -1184,6 +1187,58 @@ pub fn i_callnf(vm : &mut Vm, flag : Flag) -> Clock {
     else {
         i_call(vm);
         Clock { m:3, t:24 }
+    }
+}
+
+
+/// Return from a function
+///
+/// Actualy pop PC from the stack
+/// Syntax : `RET`
+pub fn i_ret(vm : &mut Vm) -> Clock {//TODO
+    // Pop PC from the stack
+    pc![vm] = mmu::rw(sp![vm], &mut vm.mmu);
+    sp![vm] = sp![vm].wrapping_add(2);
+
+    Clock { m:1, t:16 }
+}
+
+/// Return from a function and enable interuptions
+///
+/// Actualy pop PC from the stack
+/// Syntax : `RETI`
+pub fn i_reti(vm : &mut Vm) -> Clock {
+    vm.cpu.interrupt = InterruptState::IEnabled;
+    i_ret(vm)
+}
+
+/// Return from a function if flag is set
+///
+/// Actualy pop PC from the stack
+/// Syntax : `RET flag:Flag`
+pub fn i_retf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        i_ret(vm);
+        Clock { m:1, t:20 }
+    }
+    else {
+        read_program_word(vm);
+        Clock { m:1, t:8 }
+    }
+}
+
+/// Return from a function if flag is not set
+///
+/// Actualy pop PC from the stack
+/// Syntax : `RET flag:Flag`
+pub fn i_retnf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        read_program_word(vm);
+        Clock { m:1, t:8 }
+    }
+    else {
+        i_ret(vm);
+        Clock { m:1, t:20 }
     }
 }
 
