@@ -438,6 +438,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF0 => mk_inst![vm> "LDHAa8m", i_ldhaa8m(vm)],
         0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
         0xF2 => mk_inst![vm> "LDACm",   i_ldacm(vm)],
+        0xF3 => mk_inst![vm> "DI",      i_di(vm)],
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
@@ -1335,4 +1336,12 @@ pub fn i_rlhlm(vm : &mut Vm) -> Clock {
     mmu::wb(hl![vm], result, vm);
 
     Clock { m:2, t:16 }
+}
+
+/// DIsable interruptions
+///
+/// Syntax : `DI`
+pub fn i_di(vm : &mut Vm) -> Clock {
+    vm.cpu.interrupt = InterruptState::IDisableNextInst;
+    Clock { m:1, t:4 }
 }
