@@ -162,6 +162,7 @@ pub fn load_rom(filename : String) -> Result<Vm> {
     Ok(Vm {
         cpu : Default::default(),
         mmu : mmu,
+        gpu : Default::default(),
         cartridge : cartridge,
     })
 }

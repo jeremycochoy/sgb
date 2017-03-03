@@ -1,5 +1,6 @@
 use vm::*;
 use tools::*;
+use gpu;
 use mmu;
 use std::boxed::Box;
 
@@ -154,14 +155,14 @@ pub struct Cpu {
 
 /// Read a byte from the memory pointed by PC, and increment PC
 pub fn read_program_byte(vm : &mut Vm) -> u8 {
-    let byte = mmu::rb(pc![vm], &vm.mmu);
+    let byte = mmu::rb(pc![vm], vm);
     pc![vm] = pc![vm].wrapping_add(1);
     return byte;
 }
 
 /// Read a word (2bytes) from the memory pointed by PC, and increment PC
 pub fn read_program_word(vm : &mut Vm) -> u16 {
-    let word = mmu::rw(pc![vm], &vm.mmu);
+    let word = mmu::rw(pc![vm], vm);
     pc![vm] = pc![vm].wrapping_add(2);
     return word;
 }
@@ -185,16 +186,19 @@ pub fn execute_one_instruction(vm : &mut Vm) {
         0xCB => dispatch_cb(read_program_byte(vm)),
         _    => dispatch(opcode),
     };
-
     let clock = (fct)(vm);
-    println!("0x{:04x}:{}\t{:?}", pc![vm], name, clock);
 
     // Update CPU's clock
     vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
-    vm.cpu.clock.t = vm.cpu.clock.m.wrapping_add(clock.t);
+    vm.cpu.clock.t = vm.cpu.clock.t.wrapping_add(clock.t);
+
+    // Debug :
+    if vm.cpu.clock.t % 100 == 0 {
+        //println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
+    }
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
-    //update_gpu_mode(&mut vm.gpu, clock.t);
+    gpu::update_gpu_mode(vm, clock.t);
 }
 
 /// Simple macro for writing dispatch more easily
@@ -541,7 +545,7 @@ pub fn i_ldrr(vm : &mut Vm, dst : Register, src : Register) -> Clock {
 /// > LDrr16m Register <- (h:l)
 pub fn i_ldrr16m(vm : &mut Vm, dst : Register, h : Register, l : Register) -> Clock {
     let addr = get_r16(vm, h, l);
-    reg![vm ; dst] = mmu::rb(addr, &vm.mmu);
+    reg![vm ; dst] = mmu::rb(addr, vm);
     Clock { m:1, t:8 }
 }
 
@@ -552,7 +556,7 @@ pub fn i_ldrr16m(vm : &mut Vm, dst : Register, h : Register, l : Register) -> Cl
 /// > LDr16mr (h:l) <- Register
 pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Clock {
     let addr = get_r16(vm, h, l);
-    mmu::wb(addr, reg![vm ; src], &mut vm.mmu);
+    mmu::wb(addr, reg![vm ; src], vm);
     Clock { m:1, t:8 }
 }
 
@@ -563,7 +567,7 @@ pub fn i_ldr16mr(vm : &mut Vm, h : Register, l : Register, src : Register) -> Cl
 /// > LDCmA (0xFF00 + C) <- A
 pub fn i_ldcma(vm : &mut Vm) -> Clock {
     let addr = 0xFF00 + reg![vm ; Register::C] as u16;
-    mmu::wb(addr, reg![vm ; Register::A], &mut vm.mmu);
+    mmu::wb(addr, reg![vm ; Register::A], vm);
     Clock { m:1, t:8 }
 }
 
@@ -574,7 +578,7 @@ pub fn i_ldcma(vm : &mut Vm) -> Clock {
 /// > LDACm A <- (0xFF00 + C)
 pub fn i_ldacm(vm : &mut Vm) -> Clock {
     let addr = 0xFF00 + reg![vm ; Register::C] as u16;
-    reg![vm ; Register::A] = mmu::rb(addr, &mut vm.mmu);
+    reg![vm ; Register::A] = mmu::rb(addr, vm);
     Clock { m:1, t:8 }
 }
 
@@ -586,7 +590,7 @@ pub fn i_ldacm(vm : &mut Vm) -> Clock {
 /// > LDH (0xFF00 + a8) <- A
 pub fn i_ldha8ma(vm : &mut Vm) -> Clock {
     let addr = 0xFF00 + read_program_byte(vm) as u16;
-    mmu::wb(addr, reg![vm ; Register::A], &mut vm.mmu);
+    mmu::wb(addr, reg![vm ; Register::A], vm);
     Clock { m:2, t:12 }
 }
 
@@ -597,13 +601,13 @@ pub fn i_ldha8ma(vm : &mut Vm) -> Clock {
 /// > LDH A <- (0xFF00 + a8)
 pub fn i_ldhaa8m(vm : &mut Vm) -> Clock {
     let addr = 0xFF00 + read_program_byte(vm) as u16;
-    reg![vm ; Register::A] = mmu::rb(addr, &mut vm.mmu);
+    reg![vm ; Register::A] = mmu::rb(addr, vm);
     Clock { m:2, t:12 }
 }
 
 /// Implementation for LD[I|D] (HL) A
 pub fn i_ldmod_hlma(vm : &mut Vm, modificator : i16) -> Clock {
-    mmu::wb(hl![vm], reg![vm ; Register::A], &mut vm.mmu);
+    mmu::wb(hl![vm], reg![vm ; Register::A], vm);
 
     let sum = hl![vm].wrapping_add(modificator as u16);
     set_hl!(vm, sum as u16);
@@ -612,7 +616,7 @@ pub fn i_ldmod_hlma(vm : &mut Vm, modificator : i16) -> Clock {
 
 /// Implementation for LD[I|D] A (HL)
 pub fn i_ldmod_ahlm(vm : &mut Vm, modificator : i16) -> Clock {
-    reg![vm ; Register::A] = mmu::rb(hl![vm], &mut vm.mmu);
+    reg![vm ; Register::A] = mmu::rb(hl![vm], vm);
 
     let sum = hl![vm].wrapping_add(modificator as u16);
     set_hl!(vm, sum);
@@ -647,28 +651,28 @@ pub fn i_ldrd8(vm : &mut Vm, dst : Register) -> Clock {
 
 /// LD (HL) <- immediate Word8
 pub fn i_ldhlmd8(vm : &mut Vm) -> Clock {
-    mmu::wb(hl![vm], read_program_byte(vm), &mut vm.mmu);
+    mmu::wb(hl![vm], read_program_byte(vm), vm);
     Clock { m:2, t:8 }
 }
 
 /// LD (a16) <- a where a16 means the next Word16 as an address
 pub fn i_lda16ma(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
-    mmu::wb(a16, reg![vm ; Register::A], &mut vm.mmu);
+    mmu::wb(a16, reg![vm ; Register::A], vm);
     Clock { m:3, t:12 }
 }
 
 /// LD a <- (a16) where a16 means the next Word16 as an address
 pub fn i_ldaa16m(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
-    reg![vm ; Register::A] = mmu::rb(a16, &vm.mmu);
+    reg![vm ; Register::A] = mmu::rb(a16, vm);
     Clock { m:3, t:12 }
 }
 
 /// LD (a16) <- SP where a16 means the next Word16 as an address
 pub fn i_lda16msp(vm : &mut Vm) -> Clock {
     let a16 = read_program_word(vm);
-    mmu::ww(a16, sp![vm], &mut vm.mmu);
+    mmu::ww(a16, sp![vm], vm);
     Clock { m:3, t:20 }
 }
 
@@ -706,7 +710,7 @@ pub fn i_xorr(vm : &mut Vm, src : Register) -> Clock {
 /// Syntax : `XORHLm`
 pub fn i_xorhlm(vm : &mut Vm) -> Clock {
     reset_flags(vm);
-    i_xor_imp(mmu::rb(hl![vm], &vm.mmu), vm);
+    i_xor_imp(mmu::rb(hl![vm], vm), vm);
     Clock { m:1, t:8 }
 }
 
@@ -737,14 +741,14 @@ pub fn i_orr(vm : &mut Vm, src : Register) -> Clock {
 /// Bitwise OR the register A with (HL) into A
 /// Syntax : `ORHLm`
 pub fn i_orhlm(vm : &mut Vm) -> Clock {
-    i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
+    i_or_imp(mmu::rb(hl![vm], vm), vm);
     Clock { m:1, t:8 }
 }
 
 /// Bitwise OR the register A with the immediate word8 into A
 /// Syntax : `ORd8`
 pub fn i_ord8(vm : &mut Vm) -> Clock {
-    i_or_imp(mmu::rb(hl![vm], &vm.mmu), vm);
+    i_or_imp(mmu::rb(hl![vm], vm), vm);
     Clock { m:1, t:8 }
 }
 
@@ -773,9 +777,9 @@ pub fn i_incr(vm : &mut Vm, reg : Register) -> Clock {
 ///
 /// Syntax : `INCHLm`
 pub fn i_inchlm(vm : &mut Vm) -> Clock {
-    let initial_val = mmu::rb(hl![vm], &vm.mmu);
+    let initial_val = mmu::rb(hl![vm], vm);
     let final_val = initial_val.wrapping_add(1);
-    mmu::wb(hl![vm], final_val, &mut vm.mmu);
+    mmu::wb(hl![vm], final_val, vm);
     i_inc_impl(vm, initial_val, final_val);
     Clock { m:1, t:12 }
 }
@@ -828,9 +832,9 @@ pub fn i_decr(vm : &mut Vm, reg : Register) -> Clock {
 ///
 /// Syntax : `INCHLm`
 pub fn i_dechlm(vm : &mut Vm) -> Clock {
-    let initial_val = mmu::rb(hl![vm], &vm.mmu);
+    let initial_val = mmu::rb(hl![vm], vm);
     let final_val = initial_val.wrapping_sub(1);
-    mmu::wb(hl![vm], final_val, &mut vm.mmu);
+    mmu::wb(hl![vm], final_val, vm);
     i_dec_impl(vm, initial_val, final_val);
     Clock { m:1, t:12 }
 }
@@ -875,7 +879,7 @@ pub fn i_cpr(vm : &mut Vm, src : Register) -> Clock {
 ///
 /// Syntax : `CPHLm`
 pub fn i_cphlm(vm : &mut Vm) -> Clock {
-    let input = mmu::rb(hl![vm], &mut vm.mmu);
+    let input = mmu::rb(hl![vm], vm);
 
     // Update flags and discard result
     i_sub_imp(vm, input);
@@ -926,7 +930,7 @@ pub fn i_subr(vm : &mut Vm, src : Register) -> Clock {
 ///
 /// Syntax : `SUBHLm`
 pub fn i_subhlm(vm : &mut Vm) -> Clock {
-    let input = mmu::rb(hl![vm], &mut vm.mmu);
+    let input = mmu::rb(hl![vm], vm);
 
     reg![vm ; Register::A] = i_sub_imp(vm, input);
 
@@ -975,7 +979,7 @@ pub fn i_addr(vm : &mut Vm, src : Register) -> Clock {
 ///
 /// Syntax : `ADDHLm`
 pub fn i_addhlm(vm : &mut Vm) -> Clock {
-    let input = mmu::rb(hl![vm], &mut vm.mmu);
+    let input = mmu::rb(hl![vm], vm);
 
     reg![vm ; Register::A] = i_add_imp(vm, input);
 
@@ -1064,7 +1068,7 @@ pub fn i_bitr(vm : &mut Vm, bit : usize, src : Register) -> Clock {
 ///
 /// Affect flags Z,N and H.
 pub fn i_bithlm(vm : &mut Vm, bit : usize) -> Clock {
-    let value = mmu::rb(hl![vm], &vm.mmu);
+    let value = mmu::rb(hl![vm], vm);
     let bit_value = value >> bit & 0x01;
 
     set_flag(vm, Flag::Z, bit_value == 0);
@@ -1122,7 +1126,7 @@ pub fn i_jrnf(vm : &mut Vm, flag : Flag) -> Clock {
 /// Syntax : `PUSH h:Register l:Register`
 pub fn i_push(vm : &mut Vm, h : Register, l : Register) -> Clock {
     sp![vm] = sp![vm].wrapping_sub(2);
-    mmu::ww(sp![vm], get_r16(vm, h, l), &mut vm.mmu);
+    mmu::ww(sp![vm], get_r16(vm, h, l), vm);
     Clock { m:1, t:16 }
 }
 
@@ -1131,7 +1135,7 @@ pub fn i_push(vm : &mut Vm, h : Register, l : Register) -> Clock {
 /// Do note affect any register.
 /// Syntax : `PUSH h:Register l:Register`
 pub fn i_pop(vm : &mut Vm, h : Register, l : Register) -> Clock {
-    let value = mmu::rw(sp![vm], &mut vm.mmu);
+    let value = mmu::rw(sp![vm], vm);
     set_r16(vm, h, l, value);
     sp![vm] = sp![vm].wrapping_add(2);
     Clock { m:1, t:16 }
@@ -1146,7 +1150,7 @@ pub fn i_call(vm : &mut Vm) -> Clock {
 
     // Push PC on the stack
     sp![vm] = sp![vm].wrapping_sub(2);
-    mmu::ww(sp![vm], pc![vm], &mut vm.mmu);
+    mmu::ww(sp![vm], pc![vm], vm);
 
     // Update PC
     pc![vm] = a16;
@@ -1190,7 +1194,7 @@ pub fn i_callnf(vm : &mut Vm, flag : Flag) -> Clock {
 /// Syntax : `RET`
 pub fn i_ret(vm : &mut Vm) -> Clock {//TODO
     // Pop PC from the stack
-    pc![vm] = mmu::rw(sp![vm], &mut vm.mmu);
+    pc![vm] = mmu::rw(sp![vm], vm);
     sp![vm] = sp![vm].wrapping_add(2);
 
     Clock { m:1, t:16 }
@@ -1266,10 +1270,10 @@ pub fn i_rl(vm : &mut Vm, reg : Register) -> Clock {
 /// Syntax : `RLHLm`
 pub fn i_rlhlm(vm : &mut Vm) -> Clock {
     // Read value
-    let value = mmu::rb(hl![vm], &vm.mmu);
+    let value = mmu::rb(hl![vm], vm);
     let result = i_rl_imp(value, vm);
     // Write value
-    mmu::wb(hl![vm], result, &mut vm.mmu);
+    mmu::wb(hl![vm], result, vm);
 
     Clock { m:2, t:16 }
 }

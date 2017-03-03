@@ -18,7 +18,8 @@
 >  FFFF        Interrupt Enable Register
 */
 use tools::*;
-use gpu::*;
+use vm::*;
+use io;
 
 #[derive(PartialEq, Eq, Debug)]
 /// The MMU (memory)
@@ -47,8 +48,6 @@ pub struct Mmu {
     /// Once the booting sequence is finished, the value is
     /// turned to false. Then, rading below 0x100 read bytes from the rom field.
     pub bios_enabled : bool,
-    /// The gpu data
-    pub gpu   : Gpu,
 }
 
 impl Default for Mmu {
@@ -81,14 +80,14 @@ impl Default for Mmu {
         hram  : empty_memory(0xFF80..0xFFFF),
         ier   : 0x00,
         bios_enabled : true,
-        gpu   : Default::default(),
     }
     }
 }
 
 /// Read a byte from MMU (TODO)
-pub fn rb(addr : u16, mmu : &Mmu) -> u8 {
+pub fn rb(addr : u16, vm : &Vm) -> u8 {
     let addr = addr as usize;
+    let mmu = &vm.mmu;
     // TODO Check if memory (vram / OAM) is acessible
     // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
@@ -107,40 +106,42 @@ pub fn rb(addr : u16, mmu : &Mmu) -> u8 {
         0xFE00...0xFE9F => mmu.oam[addr - 0xFE00],
         0xFF80...0xFFFE => mmu.hram[addr - 0xFF80],
         0xFFFF => mmu.ier,
-        _ => 0, //TODO
+        // Otherwise, it should be an IO
+        _ => io::dispatch_io_read(addr, vm),
     }
 }
 
 /// Read a word (2 bytes) from MMU at address addr
-pub fn rw(addr : u16, mmu : &Mmu) -> u16 {
-    let l = rb(addr, mmu);
-    let h = rb(addr + 1, mmu);
+pub fn rw(addr : u16, vm : &Vm) -> u16 {
+    let l = rb(addr, vm);
+    let h = rb(addr + 1, vm);
     w_combine(h, l)
 }
 
 /// Write a byte to the MMU at address addr (TODO)
-pub fn wb(addr : u16, value : u8, mmu : &mut Mmu) {
+pub fn wb(addr : u16, value : u8, vm : &mut Vm) {
     let addr = addr as usize;
     // TODO Check if memory (vram / OAM) is acessible
     // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
         0x0000...0x7FFF => return, // ROM is Read Only
-        0x8000...0x9FFF => mmu.vram[addr - 0x8000] = value,
-        0xA000...0xBFFF => mmu.eram[addr - 0xA000] = value,
-        0xC000...0xCFFF => mmu.wram[addr - 0xC000] = value,
-        0xD000...0xDFFF => mmu.swram[addr - 0xD000] = value,
-        0xE000...0xEFFF => mmu.wram[addr - 0xE000] = value,
-        0xF000...0xFDFF => mmu.swram[addr - 0xF000] = value,
-        0xFE00...0xFE9F => mmu.oam[addr - 0xFE00] = value,
-        0xFF80...0xFFFE => mmu.hram[addr - 0xFF80] = value,
-        0xFFFF => mmu.ier = value,
-        _ => return, //TODO
+        0x8000...0x9FFF => vm.mmu.vram[addr - 0x8000] = value,
+        0xA000...0xBFFF => vm.mmu.eram[addr - 0xA000] = value,
+        0xC000...0xCFFF => vm.mmu.wram[addr - 0xC000] = value,
+        0xD000...0xDFFF => vm.mmu.swram[addr - 0xD000] = value,
+        0xE000...0xEFFF => vm.mmu.wram[addr - 0xE000] = value,
+        0xF000...0xFDFF => vm.mmu.swram[addr - 0xF000] = value,
+        0xFE00...0xFE9F => vm.mmu.oam[addr - 0xFE00] = value,
+        0xFF80...0xFFFE => vm.mmu.hram[addr - 0xFF80] = value,
+        0xFFFF => vm.mmu.ier = value,
+        // Otherwise, it should be an IO
+        _ => io::dispatch_io_write(addr, value, vm),
     }
 }
 
 /// Write a word (2 bytes) into the MMU at adress addr
-pub fn ww(addr : u16, value : u16, mmu : &mut Mmu) {
+pub fn ww(addr : u16, value : u16, vm : &mut Vm) {
     let (h, l) = w_uncombine(value);
-    wb(addr, l, mmu);
-    wb(addr + 1, h, mmu);
+    wb(addr, l, vm);
+    wb(addr + 1, h, vm);
 }

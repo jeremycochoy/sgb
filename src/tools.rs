@@ -18,6 +18,11 @@ pub fn empty_memory<I : Iterator>(range : I) -> Vec<u8> {
     range.map(|_| 0).collect()
 }
 
+// Replace the each element of the list by a null byte
+pub fn white_memory<I : Iterator>(range : I) -> Vec<u8> {
+    range.map(|_| 0xFF).collect()
+}
+
 pub fn read_string(memory : &[u8], max_len : usize) -> String {
     let mut string = String::new();
     let mut idx = 0;
