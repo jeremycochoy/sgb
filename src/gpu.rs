@@ -30,7 +30,7 @@ impl Default for Gpu {
     fn default() -> Gpu {
         Gpu {
             clock       : Default::default(),
-            mode        : GpuMode::HorizontalBlank,
+            mode        : GpuMode::ScanlineOAM,
             line        : 0,
             scx         : 0,
             scy         : 0,
@@ -157,29 +157,47 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
     }
 }
 
+/// Return a line of 8 pixels from a tile
+///
+/// The index of the tile is given by `tile_idx`.
+/// Coordinates `line_idx` is the index of the line,
+/// from 0 to 7.
+pub fn get_tile_pixels_line(vram : &Vec<u8>, tile_idx : u8, line_idx : u8) -> Vec<u8> {
+    let mut px = Vec::new();
+    px.push(2);
+    px.push(1);
+    px.push(2);
+    px.push(2);
+    px.push(1);
+    px.push(2);
+    px.push(1);
+    px.push(2);
+    return px;
+}
+
 /// Load tile map line
 ///
-/// The coordinates x and y should be the location of the
-/// first tile in the tile_map. The tile map is selected from
-/// lcdc's flag bg_tile_map.
-/// The function return a vector of (SCREEN_WIDTH/8 + 1) tile indexes.
-/// It's one more tile that can be displayed on a line. This allow
-/// To display only a part of the first and last tile (wen scx and
+/// The coordinates `x` and `y` should be the location of the
+/// first tile in the 32x32 tile map. The tile map (0 or 1) is
+/// selected from `lcdc`'s flag `bg_tile_map`.
+///
+/// The function return a slice of `(SCREEN_WIDTH/8 + 1)` tile indexes.
+/// The slice point directly to the mmu's vram.
+///
+/// The slice's length is one more tile that can be displayed on a line.
+/// This allow to display only a part of the first and last tile (wen scx and
 /// scy are not multiples of 8).
-pub fn load_tile_map_line(vm : &mut Vm, x : u8, y : u8) -> Vec<u8> {
-    let x = x as u16;
-    let y = y as u16;
-    let addr = if vm.gpu.lcdc.bg_tile_map {0x9C00} else {0x9800} as u16;
+pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u8, y : u8) -> &'a [u8] {
+    let x = x as usize;
+    let y = y as usize;
+    let addr = if gpu.lcdc.bg_tile_map {0x9C00} else {0x9800};
 
     // Number of tiles in one line
     let w = SCREEN_WIDTH / 8;
-    print!("x:{:2},y:{:2} # ", x, y);
-    for idx in 0..(w + 1) {
-        let addr_cell = addr + (idx as u16) + x + y * (w as u16);
-        print!("{:02X} ", mmu::rb(addr_cell, vm));
-    }
-    println!("");
-    return Vec::new();
+
+    // Compute a slice of w+1 values on the vram
+    let addr_cell = addr + x + y * w - 0x9000;
+    return &vram[addr_cell..(addr_cell + w + 1)];
 }
 
 /// Render the current line of pixel on the rendering_memory
@@ -188,13 +206,31 @@ pub fn render_scanline(vm : &mut Vm) {
     let x = vm.gpu.scx;
     let y = vm.gpu.scy + vm.gpu.line;
 
-    // Compute the line of pixels
+    // Compute the line of tiles
     let map_x = x / 8;
     let map_y = y / 8;
-    let pixels_line = load_tile_map_line(vm, map_x, map_y);
-    //TODO
+    let tile_line = load_tile_map_line(&vm.gpu, &vm.mmu.vram, map_x, map_y).into_iter();
+
+    // Compute a line of pixels
+    let vram = &vm.mmu.vram;
+    let pixels_line = tile_line
+        .map(|idx| get_tile_pixels_line(vram, *idx, y % 8)) //[tile_index] -> [line of pixels]
+        .map(|tile| tile.into_iter().map(u8_to_color)) // [[Pixel]] -> [[GreyScale]]
+        .map(|pixels| pixels.map(color_to_rgb)); // [[GreyScale]] -> [(r, g, b)]
 
     // Update the memory with the line of pixels
+    let mut out_addr = (vm.gpu.line as usize) * 160 * 3 - (x as usize) % 8;
+    println!("Line:{} start:{}", vm.gpu.line, 0 - (x as isize) % 8);
+    for tile in pixels_line {
+        for (r, g, b) in tile {
+            if out_addr >= 0 && out_addr < ((vm.gpu.line as usize) * 160 + SCREEN_WIDTH) * 3 {
+                vm.gpu.rendering_memory[out_addr] = r;
+                vm.gpu.rendering_memory[out_addr + 1] = g;
+                vm.gpu.rendering_memory[out_addr + 2] = b;
+            }
+            out_addr += 3;
+        }
+    }
 }
 
 pub enum GreyScale {
@@ -205,7 +241,7 @@ pub enum GreyScale {
 }
 
 // TODO : Use the palette to compute the color
-pub fn u8_to_color(value : u8, vm : &Vm) -> GreyScale {
+pub fn u8_to_color(value : u8) -> GreyScale {
     match value {
         0 => GreyScale::BLACK,
         1 => GreyScale::LIGHTGREY,
