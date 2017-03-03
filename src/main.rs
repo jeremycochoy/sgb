@@ -46,6 +46,7 @@ pub fn main() {
 
     // VM
     let mut vm = load_rom("tetris.gb".to_string()).unwrap();
+//    let mut vm = load_rom("tetris.gb".to_string()).unwrap();
 
     // Event Loop
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -61,9 +62,10 @@ pub fn main() {
         }
 
         // Run 100 instructions
-        for _ in 0..100 {
+        for _ in 0..3000 {
             execute_one_instruction(&mut vm);
         }
+
         // Render screen
         render_screen(&mut vm, &mut renderer, &mut texture);
     }

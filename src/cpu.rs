@@ -138,8 +138,10 @@ pub struct Clock {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum InterruptState {
-        IEnabled,
-        IDisabled,
+    IEnabled,
+    IDisabled,
+    IDisableNextInst,
+    IEnableNextInst,
 }
 
 impl Default for InterruptState {
@@ -191,6 +193,13 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     // Update CPU's clock
     vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
     vm.cpu.clock.t = vm.cpu.clock.t.wrapping_add(clock.t);
+
+    // Update the interrupt state
+    vm.cpu.interrupt = match vm.cpu.interrupt {
+        InterruptState::IEnableNextInst =>  InterruptState::IEnabled,
+        InterruptState::IDisableNextInst => InterruptState::IDisableNextInst,
+        _ => vm.cpu.interrupt,
+    };
 
     // Debug :
     if vm.cpu.clock.t % 100 == 0 {
@@ -394,22 +403,27 @@ pub fn dispatch(opcode : u8) -> Instruction {
 
         0xC0 => mk_inst![vm> "RETNZ",   i_retnf(vm, Flag::Z)],
         0xC1 => mk_inst![vm> "POPBC",   i_pop(vm, Register::B, Register::C)],
+        0xC2 => mk_inst![vm> "JPnfZ",   i_jpnf(vm, Flag::Z)],
+        0xC3 => mk_inst![vm> "JP",      i_jp(vm)],
         0xC4 => mk_inst![vm> "CALLnZ",  i_callnf(vm, Flag::Z)],
         0xC5 => mk_inst![vm> "PUSHBC",  i_push(vm, Register::B, Register::C)],
         0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
         0xC8 => mk_inst![vm> "RETZ",    i_retf(vm, Flag::Z)],
         0xC9 => mk_inst![vm> "RET",     i_ret(vm)],
+        0xCA => mk_inst![vm> "JPfZ",    i_jpf(vm, Flag::Z)],
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
         0xCC => mk_inst![vm> "CALLZ",   i_callf(vm, Flag::Z)],
         0xCD => mk_inst![vm> "CALL",    i_call(vm)],
 
         0xD0 => mk_inst![vm> "RETNC",   i_retnf(vm, Flag::C)],
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
+        0xD2 => mk_inst![vm> "JPnfC",   i_jpnf(vm, Flag::C)],
         0xD4 => mk_inst![vm> "CALLnC",  i_callnf(vm, Flag::C)],
         0xD5 => mk_inst![vm> "PUSHDE",  i_push(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
         0xD8 => mk_inst![vm> "RETC",    i_retf(vm, Flag::C)],
         0xD9 => mk_inst![vm> "RETI",    i_reti(vm)],
+        0xDA => mk_inst![vm> "JPfC",    i_jpf(vm, Flag::C)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
 
         0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
@@ -417,6 +431,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
+        0xE9 => mk_inst![vm> "JPHLm",   i_jphlm(vm)],
         0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
 
@@ -1117,6 +1132,50 @@ pub fn i_jrnf(vm : &mut Vm, flag : Flag) -> Clock {
     else {
         i_jr(vm);
         Clock { m:2, t:12 }
+    }
+}
+
+/// Read the next two bytes and jump to the address
+///
+/// Syntax : `JP`
+pub fn i_jp(vm : &mut Vm) -> Clock {
+    pc![vm] = read_program_word(vm);
+    Clock { m:3, t:16 }
+}
+
+/// Read the next two bytes and jump to the address
+///
+/// Syntax : `JPHLm`
+pub fn i_jphlm(vm : &mut Vm) -> Clock {
+    pc![vm] = mmu::rw(hl![vm], vm);
+    Clock { m:3, t:16 }
+}
+
+/// Jump of the address given in direct Word16 if flag:Flag is set
+///
+/// Syntax : `JPf flag:Flag`
+pub fn i_jpf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        i_jp(vm);
+        Clock { m:3, t:16 }
+    }
+    else {
+        read_program_word(vm);
+        Clock { m:3, t:12 }
+    }
+}
+
+/// Jump of the address given in direct Word16 if flag:Flag is set
+///
+/// Syntax : `JPnf flag:Flag`
+pub fn i_jpnf(vm : &mut Vm, flag : Flag) -> Clock {
+    if flag![vm ; flag] {
+        read_program_word(vm);
+        Clock { m:3, t:12 }
+    }
+    else {
+        i_jp(vm);
+        Clock { m:3, t:16 }
     }
 }
 
