@@ -61,7 +61,7 @@ pub fn main() {
         }
 
         // Run 100 instructions
-        for i in 0..100 {
+        for _ in 0..100 {
             execute_one_instruction(&mut vm);
         }
         // Render screen

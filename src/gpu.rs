@@ -1,6 +1,5 @@
 use tools::*;
 use vm::*;
-use mmu;
 
 const SCREEN_WIDTH  : usize = 160;
 const SCREEN_HEIGHT : usize = 144;
@@ -163,15 +162,27 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
 pub fn get_tile_pixels_line(vram : &Vec<u8>, tile_idx : u8, line_idx : u8) -> Vec<u8> {
+    let tile_idx = tile_idx as usize;
+    let line_idx = line_idx as usize;
+
+    // TODO : Select right tileset
+    // Each tile contain 8 line. Each line is stored in 2 bytes.
+    // Therefor each tile contain 8*2 bytes.
+    let addr = 0x8000 + (tile_idx * 8 + line_idx) * 2 - 0x8000;
+
+    assert!(line_idx <= 7);
+    assert!(line_idx >= 0);
+    let h = vram[addr];
+    let l = vram[addr + 1];
+
     let mut px = Vec::new();
-    px.push(2);
-    px.push(1);
-    px.push(2);
-    px.push(2);
-    px.push(1);
-    px.push(2);
-    px.push(1);
-    px.push(2);
+    for i in 0..8 {
+        let h_v = h >> (7 - i) & 0x01;
+        let l_v = l >> (7 - i) & 0x01;
+        let color = h_v << 1 | l_v;
+        assert!(color >= 0 && color <= 3);
+        px.push(color);
+    }
     return px;
 }
 
@@ -192,17 +203,15 @@ pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u8, y : u8) ->
     let y = y as usize;
     let addr = if gpu.lcdc.bg_tile_map {0x9C00} else {0x9800};
 
-    // Number of tiles in one line
-    let w = SCREEN_WIDTH / 8;
-
     // Compute a slice of w+1 values on the vram
-    let addr_cell = addr + x + y * w - 0x9000;
-    return &vram[addr_cell..(addr_cell + w + 1)];
+    // The number of tiles in one line is 32.
+    let addr_cell = addr + x + y * 32 - 0x8000;
+    return &vram[addr_cell..(addr_cell + 32 + 1)];
 }
 
 /// Render the current line of pixel on the rendering_memory
 pub fn render_scanline(vm : &mut Vm) {
-    // Compute the coordinates of the upper left corner of the screen
+    // Compute the coordinates of the upper left corner of the line
     let x = vm.gpu.scx;
     let y = vm.gpu.scy + vm.gpu.line;
 
@@ -219,16 +228,17 @@ pub fn render_scanline(vm : &mut Vm) {
         .map(|pixels| pixels.map(color_to_rgb)); // [[GreyScale]] -> [(r, g, b)]
 
     // Update the memory with the line of pixels
-    let mut out_addr = (vm.gpu.line as usize) * 160 * 3 - (x as usize) % 8;
-    println!("Line:{} start:{}", vm.gpu.line, 0 - (x as isize) % 8);
+    let out_addr = (vm.gpu.line as isize) * 160 * 3;
+    let mut out_idx = -((x as isize) % 8);
     for tile in pixels_line {
         for (r, g, b) in tile {
-            if out_addr >= 0 && out_addr < ((vm.gpu.line as usize) * 160 + SCREEN_WIDTH) * 3 {
-                vm.gpu.rendering_memory[out_addr] = r;
-                vm.gpu.rendering_memory[out_addr + 1] = g;
-                vm.gpu.rendering_memory[out_addr + 2] = b;
+            let addr = (out_addr + out_idx) as usize;
+            if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) * 3 {
+                vm.gpu.rendering_memory[addr] = r;
+                vm.gpu.rendering_memory[addr + 1] = g;
+                vm.gpu.rendering_memory[addr + 2] = b;
             }
-            out_addr += 3;
+            out_idx += 3;
         }
     }
 }

@@ -182,7 +182,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     // Run the instruction
     let opcode = read_program_byte(vm);
-    let Instruction(name, fct) = match opcode {
+    let Instruction(_, fct) = match opcode {
         0xCB => dispatch_cb(read_program_byte(vm)),
         _    => dispatch(opcode),
     };
