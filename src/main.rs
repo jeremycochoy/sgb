@@ -7,6 +7,7 @@ use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::*;
+use std::env;
 
 pub fn render_screen(vm : &mut Vm, renderer : &mut Renderer, texture : &mut Texture) {
     // Copy the rendering memory of the VM onto the texture
@@ -44,8 +45,30 @@ pub fn main() {
     renderer.clear();
     renderer.present();
 
-    // VM
-    let mut vm = load_rom("tetris.gb".to_string()).unwrap();
+    // Reag arguments (file and remove boot)
+    let mut file_name = "".to_string();
+    let mut no_boot_rom = false;
+    for arg in env::args().skip(1) {
+        if arg == "--no-boot" || arg == "--no-boot-rom" {
+            no_boot_rom = true;
+            println!("Boot rom removed");
+        }
+        else {
+            file_name = arg;
+        }
+    }
+    if file_name == "" {
+        println!("usage : sgb file_name.gb");
+        return;
+    } else {
+        println!("Loading: {}", file_name);
+    }
+
+    // Load the VM
+    let mut vm = load_rom(file_name).unwrap();
+    if no_boot_rom {
+        vm.cpu.registers.pc = 0x100;
+    }
 
     // Event Loop
     let mut event_pump = sdl_context.event_pump().unwrap();
