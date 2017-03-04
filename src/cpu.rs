@@ -375,14 +375,22 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x97 => mk_inst![vm> "SUBA",    i_subr(vm, Register::A)],
         // ...
 
-        0xA8 => mk_inst![vm> "XORb",    i_xorr(vm, Register::B)],
-        0xA9 => mk_inst![vm> "XORc",    i_xorr(vm, Register::C)],
-        0xAA => mk_inst![vm> "XORd",    i_xorr(vm, Register::D)],
-        0xAB => mk_inst![vm> "XORe",    i_xorr(vm, Register::E)],
-        0xAC => mk_inst![vm> "XORh",    i_xorr(vm, Register::H)],
-        0xAD => mk_inst![vm> "XORl",    i_xorr(vm, Register::L)],
-        0xAE => mk_inst![vm> "XORhlm",  i_xorhlm(vm)],
-        0xAF => mk_inst![vm> "XORa",    i_xorr(vm, Register::A)],
+        0xA0 => mk_inst![vm> "ANDB",    i_andr(vm, Register::B)],
+        0xA1 => mk_inst![vm> "ANDC",    i_andr(vm, Register::C)],
+        0xA2 => mk_inst![vm> "ANDD",    i_andr(vm, Register::D)],
+        0xA3 => mk_inst![vm> "ANDE",    i_andr(vm, Register::E)],
+        0xA4 => mk_inst![vm> "ANDH",    i_andr(vm, Register::H)],
+        0xA5 => mk_inst![vm> "ANDL",    i_andr(vm, Register::L)],
+        0xA6 => mk_inst![vm> "ANDHLm",  i_andhlm(vm)],
+        0xA7 => mk_inst![vm> "ANDA",    i_andr(vm, Register::A)],
+        0xA8 => mk_inst![vm> "XORB",    i_xorr(vm, Register::B)],
+        0xA9 => mk_inst![vm> "XORC",    i_xorr(vm, Register::C)],
+        0xAA => mk_inst![vm> "XORD",    i_xorr(vm, Register::D)],
+        0xAB => mk_inst![vm> "XORE",    i_xorr(vm, Register::E)],
+        0xAC => mk_inst![vm> "XORH",    i_xorr(vm, Register::H)],
+        0xAD => mk_inst![vm> "XORL",    i_xorr(vm, Register::L)],
+        0xAE => mk_inst![vm> "XORHLm",  i_xorhlm(vm)],
+        0xAF => mk_inst![vm> "XORA",    i_xorr(vm, Register::A)],
 
         0xB0 => mk_inst![vm> "ORB",     i_orr(vm, Register::B)],
         0xB1 => mk_inst![vm> "ORC",     i_orr(vm, Register::C)],
@@ -430,6 +438,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
         0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
+        0xE6 => mk_inst![vm> "ANDd8",   i_andd8(vm)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xE9 => mk_inst![vm> "JPHLm",   i_jphlm(vm)],
         0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
@@ -442,6 +451,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
+        0xFB => mk_inst![vm> "EI",      i_ei(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
         _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
@@ -739,11 +749,12 @@ pub fn i_xord8(vm : &mut Vm) -> Clock {
     Clock { m:1, t:8 }
 }
 
-/// Implementation OR of a value with the register A, stored into A
+/// Implementation of OR of a value with the register A, stored into A
 pub fn i_or_imp(src_val : u8, vm : &mut Vm) {
     reset_flags(vm);
     reg![vm ; Register::A] |= src_val;
     let result = reg![vm ; Register::A];
+    reset_flags(vm);
     set_flag(vm, Flag::Z, result == 0);
 }
 
@@ -764,8 +775,41 @@ pub fn i_orhlm(vm : &mut Vm) -> Clock {
 /// Bitwise OR the register A with the immediate word8 into A
 /// Syntax : `ORd8`
 pub fn i_ord8(vm : &mut Vm) -> Clock {
-    i_or_imp(mmu::rb(hl![vm], vm), vm);
+    let byte = read_program_byte(vm);
+    i_or_imp(byte, vm);
+    Clock { m:2, t:8 }
+}
+
+/// Implementation of AND of a value with the register A, stored into A
+pub fn i_and_imp(src_val : u8, vm : &mut Vm) {
+    reset_flags(vm);
+    reg![vm ; Register::A] &= src_val;
+    let result = reg![vm ; Register::A];
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, result == 0);
+    set_flag(vm, Flag::H, true);
+}
+
+/// Bitwise AND the register A with a register src into A
+/// Syntax : `AND src`
+pub fn i_andr(vm : &mut Vm, src : Register) -> Clock {
+    i_and_imp(reg![vm ; src], vm);
+    Clock { m:1, t:4 }
+}
+
+/// Bitwise AND the register A with (HL) into A
+/// Syntax : `ANDHLm`
+pub fn i_andhlm(vm : &mut Vm) -> Clock {
+    i_and_imp(mmu::rb(hl![vm], vm), vm);
     Clock { m:1, t:8 }
+}
+
+/// Bitwise AND the register A with the immediate word8 into A
+/// Syntax : `ANDd8`
+pub fn i_andd8(vm : &mut Vm) -> Clock {
+    let byte = read_program_byte(vm);
+    i_and_imp(byte, vm);
+    Clock { m:2, t:8 }
 }
 
 /// Implementation of the increment instruction (setting flags)
@@ -1338,10 +1382,18 @@ pub fn i_rlhlm(vm : &mut Vm) -> Clock {
     Clock { m:2, t:16 }
 }
 
-/// DIsable interruptions
+/// Disable Interruptions
 ///
 /// Syntax : `DI`
 pub fn i_di(vm : &mut Vm) -> Clock {
     vm.cpu.interrupt = InterruptState::IDisableNextInst;
+    Clock { m:1, t:4 }
+}
+
+/// Enable Interruptions
+///
+/// Syntax : `DI`
+pub fn i_ei(vm : &mut Vm) -> Clock {
+    vm.cpu.interrupt = InterruptState::IEnableNextInst;
     Clock { m:1, t:4 }
 }
