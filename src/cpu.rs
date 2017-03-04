@@ -251,7 +251,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x1C => mk_inst![vm> "INCE",    i_incr(vm, Register::E)],
         0x1D => mk_inst![vm> "DECE",    i_decr(vm, Register::E)],
         0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
-        // 0x1F =>
+        0x1F => mk_inst![vm> "RRA",     {i_rr(vm, Register::A) ; Clock { m:1, t:4}}],
 
         0x20 => mk_inst![vm> "JRnfZ",   i_jrnf(vm, Flag::Z)],
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
@@ -454,7 +454,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xFB => mk_inst![vm> "EI",      i_ei(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
 
-        _ => panic!(format!("missing instruction 0x{:2X} !", opcode)),
+        _ => panic!(format!("missing instruction 0x{:02X} !", opcode)),
     }
 }
 
@@ -469,7 +469,31 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x15 => mk_inst![vm> "RLL",     i_rl(vm, Register::L)],
         0x16 => mk_inst![vm> "RLHLm",   i_rlhlm(vm)],
         0x17 => mk_inst![vm> "RLA",     i_rl(vm, Register::A)],
-        //...
+        0x18 => mk_inst![vm> "RRB",     i_rr(vm, Register::B)],
+        0x19 => mk_inst![vm> "RRC",     i_rr(vm, Register::C)],
+        0x1A => mk_inst![vm> "RRD",     i_rr(vm, Register::D)],
+        0x1B => mk_inst![vm> "RRE",     i_rr(vm, Register::E)],
+        0x1C => mk_inst![vm> "RRH",     i_rr(vm, Register::H)],
+        0x1D => mk_inst![vm> "RRL",     i_rr(vm, Register::L)],
+        0x1E => mk_inst![vm> "RRHLm",   i_rrhlm(vm)],
+        0x1F => mk_inst![vm> "RRA",     i_rr(vm, Register::A)],
+
+        0x20 => mk_inst![vm> "SLAB",     i_sla(vm, Register::B)],
+        0x21 => mk_inst![vm> "SLAC",     i_sla(vm, Register::C)],
+        0x22 => mk_inst![vm> "SLAD",     i_sla(vm, Register::D)],
+        0x23 => mk_inst![vm> "SLAE",     i_sla(vm, Register::E)],
+        0x24 => mk_inst![vm> "SLAH",     i_sla(vm, Register::H)],
+        0x25 => mk_inst![vm> "SLAL",     i_sla(vm, Register::L)],
+        0x26 => mk_inst![vm> "SLAHLm",   i_slahlm(vm)],
+        0x27 => mk_inst![vm> "SLAA",     i_sla(vm, Register::A)],
+        0x28 => mk_inst![vm> "SRAB",     i_sra(vm, Register::B)],
+        0x29 => mk_inst![vm> "SRAC",     i_sra(vm, Register::C)],
+        0x2A => mk_inst![vm> "SRAD",     i_sra(vm, Register::D)],
+        0x2B => mk_inst![vm> "SRAE",     i_sra(vm, Register::E)],
+        0x2C => mk_inst![vm> "SRAH",     i_sra(vm, Register::H)],
+        0x2D => mk_inst![vm> "SRAL",     i_sra(vm, Register::L)],
+        0x2E => mk_inst![vm> "SRAHLm",   i_srahlm(vm)],
+        0x2F => mk_inst![vm> "SRAA",     i_sra(vm, Register::A)],
 
         0x40 => mk_inst![vm> "BIT0B",    i_bitr(vm, 0, Register::B)],
         0x41 => mk_inst![vm> "BIT0C",    i_bitr(vm, 0, Register::C)],
@@ -539,7 +563,7 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x7E => mk_inst![vm> "BIT7HLm",  i_bithlm(vm, 7)],
         0x7F => mk_inst![vm> "BIT7A",    i_bitr(vm, 7, Register::A)],
 
-        _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:2X} !", opcode)),
+        _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:02X} !", opcode)),
     }
 }
 
@@ -1376,6 +1400,121 @@ pub fn i_rlhlm(vm : &mut Vm) -> Clock {
     // Read value
     let value = mmu::rb(hl![vm], vm);
     let result = i_rl_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of RR
+pub fn i_rr_imp(value : u8, vm : &mut Vm) -> u8 {
+    let carry = flag![vm ; Flag::C] as u8;
+    let result = (value >> 1) | carry << 7;
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, (value & 0x01) != 0); // Take value's bit 0
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Rotate Right through carry
+///
+/// Rotate the value in register reg 1 bit right.
+/// Bit 0 goes in carry, and carry goes at reg's 7 bit.
+///
+/// Syntax : `RR reg:Register`
+pub fn i_rr(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_rl_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Rotate Right through carry
+///
+/// Rotate the value in (HL) 1 bit right.
+/// Bit 0 goes in carry, and carry goes at (HL)'s 7 bit.
+///
+/// Syntax : `RRHLm`
+pub fn i_rrhlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_rl_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of SLA
+pub fn i_sla_imp(value : u8, vm : &mut Vm) -> u8 {
+    let result = value << 1;
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, value & 0x80 != 0); // Take value's bit 7
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Shift left
+///
+/// Shift the value in the register `reg` of 1 to the left.
+/// Bit 7 goes in carry, and register's bit 0 is set to 0.
+///
+/// Syntax : `SLA reg:Register`
+pub fn i_sla(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_sla_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Shift left
+///
+/// Shift the value in (HL) of 1 to the left.
+/// Bit 7 goes in carry, and (HL)'s bit 0 is set to 0.
+///
+/// Syntax : `SLAHLm`
+pub fn i_slahlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_sla_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of SRA
+pub fn i_sra_imp(value : u8, vm : &mut Vm) -> u8 {
+    let result = value >> 1 | value & 0x80;
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, value & 0x01 != 0); // Take value's bit 0
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Shift right
+///
+/// Shift the value in the register `reg` of 1 to the right.
+/// Bit 7 stay inchanged, and register's bit 0 goes in carry.
+///
+/// Syntax : `SRA reg:Register`
+pub fn i_sra(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_sra_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Shift right
+///
+/// Shift the value in (HL) of 1 to the right.
+/// Bit 7 stay inchanged, and register's bit 0 goes in carry.
+///
+/// Syntax : `SRAHLm`
+pub fn i_srahlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_sra_imp(value, vm);
     // Write value
     mmu::wb(hl![vm], result, vm);
 
