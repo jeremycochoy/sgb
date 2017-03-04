@@ -17,6 +17,7 @@ pub fn dispatch_io_read(addr : usize, vm : &Vm) -> u8 {
         0xFF42 => vm.gpu.scy,
         0xFF43 => vm.gpu.scx,
         0xFF44 => vm.gpu.line,
+        0xFF47 => vm.gpu.bg_palette,
         _ => 0, //TODO
     }
 }
@@ -29,6 +30,7 @@ pub fn dispatch_io_write(addr : usize, value :u8, vm : &mut Vm) {
         0xFF42 => vm.gpu.scy = value,
         0xFF43 => vm.gpu.scx = value,
         0xFF44 => vm.gpu.line = value,
+        0xFF47 => vm.gpu.bg_palette = value,
         _ => return, //TODO
     }
 }

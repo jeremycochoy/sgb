@@ -59,6 +59,16 @@ pub enum GpuMode {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
+/// Represent the diferent colors a GB can display
+/// on screen.
+pub enum GreyScale {
+    WHITE,
+    LIGHTGREY,
+    DARKGREY,
+    BLACK,
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// The LCDC register. It's default value is 0x91.
 pub struct LCDC {
     /// Bit 7 - LCD Control Operation *
@@ -161,14 +171,20 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// The index of the tile is given by `tile_idx`.
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
-pub fn get_tile_pixels_line(vram : &Vec<u8>, tile_idx : u8, line_idx : u8) -> Vec<u8> {
-    let tile_idx = tile_idx as usize;
-    let line_idx = line_idx as usize;
+pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u8) -> Vec<u8> {
 
     // TODO : Select right tileset
     // Each tile contain 8 line. Each line is stored in 2 bytes.
     // Therefor each tile contain 8*2 bytes.
-    let addr = 0x8000 + (tile_idx * 8 + line_idx) * 2 - 0x8000;
+    let addr = if lcdc.tile_set {
+        let tile_idx = tile_idx as isize;
+        let line_idx = line_idx as isize;
+        0x8000 + (tile_idx * 8 + line_idx) * 2 - 0x8000
+    } else {
+        let tile_idx = (tile_idx as i8) as isize;
+        let line_idx = line_idx as isize;
+        0x8800 + (tile_idx * 8 + line_idx) * 2 - 0x8000
+    } as usize;
 
     assert!(line_idx <= 7);
     assert!(line_idx >= 0);
@@ -222,8 +238,11 @@ pub fn render_scanline(vm : &mut Vm) {
 
     // Compute a line of pixels
     let vram = &vm.mmu.vram;
+    let lcdc = vm.gpu.lcdc;
+    let bg_palette = vm.gpu.bg_palette;
     let pixels_line = tile_line
-        .map(|idx| get_tile_pixels_line(vram, *idx, y % 8)) //[tile_index] -> [line of pixels]
+        .map(|idx| get_tile_pixels_line(lcdc, vram, *idx, y % 8)) //[tile_index] -> [line of pixels]
+        .map(|tile| tile.into_iter().map(|px| bgpalette_to_u8(bg_palette, px))) // [[Pixel]] -> [[Pixel]]
         .map(|tile| tile.into_iter().map(u8_to_color)) // [[Pixel]] -> [[GreyScale]]
         .map(|pixels| pixels.map(color_to_rgb)); // [[GreyScale]] -> [(r, g, b)]
 
@@ -243,24 +262,30 @@ pub fn render_scanline(vm : &mut Vm) {
     }
 }
 
-pub enum GreyScale {
-    WHITE,
-    LIGHTGREY,
-    DARKGREY,
-    BLACK,
-}
-
-// TODO : Use the palette to compute the color
-pub fn u8_to_color(value : u8) -> GreyScale {
+/// Take a tile's pixel `value` (value in [|0, 3|]) and give a color
+/// value (value in [|0, 3|]) using `pallette`.
+pub fn bgpalette_to_u8(palette : u8, value : u8) -> u8 {
     match value {
-        0 => GreyScale::BLACK,
-        1 => GreyScale::LIGHTGREY,
-        2 => GreyScale::DARKGREY,
-        3 => GreyScale::WHITE,
+        0 => 0x03 & (palette >> 0),
+        1 => 0x03 & (palette >> 2),
+        2 => 0x03 & (palette >> 4),
+        3 => 0x03 & (palette >> 6),
         _ => panic!("Invalid value in u8_to_color call"),
     }
 }
 
+/// Take a pixel color `value` and translate it to the GreyScale.
+pub fn u8_to_color(value : u8) -> GreyScale {
+    match value {
+        0 => GreyScale::WHITE,
+        1 => GreyScale::LIGHTGREY,
+        2 => GreyScale::DARKGREY,
+        3 => GreyScale::BLACK,
+        _ => panic!("Invalid value in u8_to_color call"),
+    }
+}
+
+/// Give the rgb colors from a GreyScale
 pub fn color_to_rgb(color : GreyScale) -> (u8, u8, u8) {
     match color {
         GreyScale::WHITE        => (0xFF, 0xFF, 0xFF),

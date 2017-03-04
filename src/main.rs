@@ -46,7 +46,6 @@ pub fn main() {
 
     // VM
     let mut vm = load_rom("tetris.gb".to_string()).unwrap();
-//    let mut vm = load_rom("tetris.gb".to_string()).unwrap();
 
     // Event Loop
     let mut event_pump = sdl_context.event_pump().unwrap();
