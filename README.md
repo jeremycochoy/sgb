@@ -19,7 +19,7 @@ The emulator is broken in different modules :
 TODO
 ----
 
-At the moment, the consol do not provide any sound output.
+At the moment, the emulator do not provide any sound output.
 
 Next goals to archieve:
 * Emulate 100% of the 0xCB instructions
