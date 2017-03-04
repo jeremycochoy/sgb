@@ -227,7 +227,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x04 => mk_inst![vm> "INCB",    i_incr(vm, Register::B)],
         0x05 => mk_inst![vm> "DECB",    i_decr(vm, Register::B)],
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
-        //0x07 =>
+        0x07 => mk_inst![vm> "RLCA",    i_rlc(vm, Register::A)],
         0x08 => mk_inst![vm> "LDa16mSP",i_lda16msp(vm)],
         0x09 => mk_inst![vm> "ADDHLBC", i_addhlr16(vm, Register::B, Register::C)],
         0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
@@ -235,7 +235,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x0C => mk_inst![vm> "INCC",    i_incr(vm, Register::C)],
         0x0D => mk_inst![vm> "DECC",    i_decr(vm, Register::C)],
         0x0E => mk_inst![vm> "LDCd8",   i_ldrd8(vm, Register::C)],
-        //0x0F =>
+        0x0F => mk_inst![vm> "RRCA",    i_rrc(vm, Register::A)],
 
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
         0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
@@ -461,6 +461,23 @@ pub fn dispatch(opcode : u8) -> Instruction {
 /// Associate to each opcode:u8 it's instruction:Instruction in the 0xCB table
 pub fn dispatch_cb(opcode : u8) -> Instruction {
     match opcode {
+        0x00 => mk_inst![vm> "RLCB",     i_rlc(vm, Register::B)],
+        0x01 => mk_inst![vm> "RLCC",     i_rlc(vm, Register::C)],
+        0x02 => mk_inst![vm> "RLCD",     i_rlc(vm, Register::D)],
+        0x03 => mk_inst![vm> "RLCE",     i_rlc(vm, Register::E)],
+        0x04 => mk_inst![vm> "RLCH",     i_rlc(vm, Register::H)],
+        0x05 => mk_inst![vm> "RLCL",     i_rlc(vm, Register::L)],
+        0x06 => mk_inst![vm> "RLCHLm",   i_rlchlm(vm)],
+        0x07 => mk_inst![vm> "RLCA",     i_rlc(vm, Register::A)],
+        0x08 => mk_inst![vm> "RRCB",     i_rrc(vm, Register::B)],
+        0x09 => mk_inst![vm> "RRCC",     i_rrc(vm, Register::C)],
+        0x0A => mk_inst![vm> "RRCD",     i_rrc(vm, Register::D)],
+        0x0B => mk_inst![vm> "RRCE",     i_rrc(vm, Register::E)],
+        0x0C => mk_inst![vm> "RRCH",     i_rrc(vm, Register::H)],
+        0x0D => mk_inst![vm> "RRCL",     i_rrc(vm, Register::L)],
+        0x0E => mk_inst![vm> "RRCHLm",   i_rrchlm(vm)],
+        0x0F => mk_inst![vm> "RRCA",     i_rrc(vm, Register::A)],
+
         0x10 => mk_inst![vm> "RLB",     i_rl(vm, Register::B)],
         0x11 => mk_inst![vm> "RLC",     i_rl(vm, Register::C)],
         0x12 => mk_inst![vm> "RLD",     i_rl(vm, Register::D)],
@@ -1086,7 +1103,7 @@ pub fn i_addd8(vm : &mut Vm) -> Clock {
 ///
 /// Set Z H C.
 pub fn i_add_imp16(vm : &mut Vm, a: u16, b : u16) -> u16 {
-    let sum = a + b;
+    let sum = a.wrapping_add(b);
 
     set_flag(vm, Flag::N, false);
     set_flag(vm, Flag::H, (0x0FFF & a + 0x0FFF & b) & 0x1000 != 0);
@@ -1515,6 +1532,84 @@ pub fn i_srahlm(vm : &mut Vm) -> Clock {
     // Read value
     let value = mmu::rb(hl![vm], vm);
     let result = i_sra_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of RLC
+pub fn i_rlc_imp(value : u8, vm : &mut Vm) -> u8 {
+    let result = (value << 1) | (value >> 7);
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, (value & 0x80) != 0); // Take value's bit 7
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Rotate Left
+///
+/// Rotate the value in register `reg` 1 bit on the left.
+/// Bit 7 goes in carry.
+///
+/// Syntax : `RLC reg:Register`
+pub fn i_rlc(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_rlc_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Rotate Left
+///
+/// Rotate the value in (HL) 1 bit on the left.
+/// Bit 7 goes in carry.
+///
+/// Syntax : `RLCHLm`
+pub fn i_rlchlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_rlc_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of RRC
+pub fn i_rrc_imp(value : u8, vm : &mut Vm) -> u8 {
+    let carry = flag![vm ; Flag::C] as u8;
+    let result = (value >> 1) | (value << 7);
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, (value & 0x01) != 0); // Take value's bit 0
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+
+/// Rotate Right
+///
+/// Rotate the value in register `reg` 1 bit on the right.
+/// Bit 0 goes in carry.
+///
+/// Syntax : `RRC reg:Register`
+pub fn i_rrc(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_rl_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Rotate Right
+///
+/// Rotate the value in (HL) 1 bit on the right.
+/// Bit 0 goes in carry.
+///
+/// Syntax : `RRHLm`
+pub fn i_rrchlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_rl_imp(value, vm);
     // Write value
     mmu::wb(hl![vm], result, vm);
 
