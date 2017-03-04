@@ -373,7 +373,14 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x95 => mk_inst![vm> "SUBL",    i_subr(vm, Register::L)],
         0x96 => mk_inst![vm> "SUBHLm",  i_subhlm(vm)],
         0x97 => mk_inst![vm> "SUBA",    i_subr(vm, Register::A)],
-        // ...
+        0x98 => mk_inst![vm> "SBCB",    i_sbcr(vm, Register::B)],
+        0x99 => mk_inst![vm> "SBCC",    i_sbcr(vm, Register::C)],
+        0x9A => mk_inst![vm> "SBCD",    i_sbcr(vm, Register::D)],
+        0x9B => mk_inst![vm> "SBCE",    i_sbcr(vm, Register::E)],
+        0x9C => mk_inst![vm> "SBCH",    i_sbcr(vm, Register::H)],
+        0x9D => mk_inst![vm> "SBCL",    i_sbcr(vm, Register::L)],
+        0x9E => mk_inst![vm> "SBCHLm",  i_sbchlm(vm)],
+        0x9F => mk_inst![vm> "SBCA",    i_sbcr(vm, Register::A)],
 
         0xA0 => mk_inst![vm> "ANDB",    i_andr(vm, Register::B)],
         0xA1 => mk_inst![vm> "ANDC",    i_andr(vm, Register::C)],
@@ -433,6 +440,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xD9 => mk_inst![vm> "RETI",    i_reti(vm)],
         0xDA => mk_inst![vm> "JPfC",    i_jpf(vm, Flag::C)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
+        0xDE => mk_inst![vm> "SBCd8",   i_sbcd8(vm)],
 
         0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
@@ -1049,6 +1057,46 @@ pub fn i_subd8(vm : &mut Vm) -> Clock {
 
     Clock { m:2, t:8 }
 }
+
+/// Substract src:Register + carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `SBC src:Register`
+pub fn i_sbcr(vm : &mut Vm, src : Register) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = reg![vm ; src];
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+
+    Clock { m:1, t:4 }
+}
+
+/// Substract (HL) + carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `SBCHLm`
+pub fn i_sbchlm(vm : &mut Vm) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = mmu::rb(hl![vm], vm);
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+
+    Clock { m:1, t:8 }
+}
+
+/// Substract direct Word8 + carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `SBCd8`
+pub fn i_sbcd8(vm : &mut Vm) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = read_program_byte(vm);
+
+    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+
+    Clock { m:2, t:8 }
+}
+
 
 /// Implement adding value:u8 to the register A and set the flags
 pub fn i_add_imp(vm : &mut Vm, value : u8) -> u8 {
