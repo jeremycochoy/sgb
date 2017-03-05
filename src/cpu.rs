@@ -363,7 +363,14 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x85 => mk_inst![vm> "ADDL",    i_addr(vm, Register::L)],
         0x86 => mk_inst![vm> "ADDHLm",  i_addhlm(vm)],
         0x87 => mk_inst![vm> "ADDA",    i_addr(vm, Register::A)],
-        // ...
+        0x88 => mk_inst![vm> "ADCB",    i_adcr(vm, Register::B)],
+        0x89 => mk_inst![vm> "ADCC",    i_adcr(vm, Register::C)],
+        0x8A => mk_inst![vm> "ADCD",    i_adcr(vm, Register::D)],
+        0x8B => mk_inst![vm> "ADCE",    i_adcr(vm, Register::E)],
+        0x8C => mk_inst![vm> "ADCH",    i_adcr(vm, Register::H)],
+        0x8D => mk_inst![vm> "ADCL",    i_adcr(vm, Register::L)],
+        0x8E => mk_inst![vm> "ADCHLm",  i_adchlm(vm)],
+        0x8F => mk_inst![vm> "ADCA",    i_adcr(vm, Register::A)],
 
         0x90 => mk_inst![vm> "SUBB",    i_subr(vm, Register::B)],
         0x91 => mk_inst![vm> "SUBC",    i_subr(vm, Register::C)],
@@ -429,6 +436,8 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xCB => Instruction("CBPref", Box::new(|_ : &mut Vm| Clock { m:0, t:0 })),
         0xCC => mk_inst![vm> "CALLZ",   i_callf(vm, Flag::Z)],
         0xCD => mk_inst![vm> "CALL",    i_call(vm)],
+        0xCE => mk_inst![vm> "ADCd8",   i_adcd8(vm)],
+        // 0xCF =>
 
         0xD0 => mk_inst![vm> "RETNC",   i_retnf(vm, Flag::C)],
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
@@ -1198,6 +1207,45 @@ pub fn i_addspr8(vm : &mut Vm) -> Clock {
     sp![vm] = sum;
 
     Clock { m:1, t:8 }
+}
+
+/// Add src:Register + carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `ADC src:Register`
+pub fn i_adcr(vm : &mut Vm, src : Register) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = reg![vm ; src];
+
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+
+    Clock { m:1, t:4 }
+}
+
+/// Add (HL) +carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `ADCHLm`
+pub fn i_adchlm(vm : &mut Vm) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = mmu::rb(hl![vm], vm);
+
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+
+    Clock { m:1, t:8 }
+}
+
+/// Add direct Word8 + carry to A and set the flags Z/H/C.
+/// Set register N to 1.
+///
+/// Syntax : `CPd8`
+pub fn i_adcd8(vm : &mut Vm) -> Clock {
+    let carry = flag![vm ; Flag::C] as u8;
+    let input = read_program_byte(vm);
+
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+
+    Clock { m:2, t:8 }
 }
 
 /// Test the bit bit from src.
