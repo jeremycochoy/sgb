@@ -1099,15 +1099,28 @@ pub fn i_subd8(vm : &mut Vm) -> Clock {
     Clock { m:2, t:8 }
 }
 
+/// Implement substracting value:u8 and carry to the register A and set the flags
+pub fn i_sbc_imp(vm : &mut Vm, value : u8) -> u8 {
+    let carry = flag![vm ; Flag::C] as u8;
+    let a = reg![vm ; Register::A];
+    let b = value;
+    let diff = a.wrapping_sub(b).wrapping_sub(carry);
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, diff == 0);
+    set_flag(vm, Flag::N, true);
+    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b).wrapping_sub(carry) & 0x10 == 0x10);
+    set_flag(vm, Flag::C, (carry as u16) + (b as u16) > a as u16);
+    return diff
+}
+
 /// Substract src:Register + carry to A and set the flags Z/H/C.
 /// Set register N to 1.
 ///
 /// Syntax : `SBC src:Register`
 pub fn i_sbcr(vm : &mut Vm, src : Register) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = reg![vm ; src];
 
-    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_sbc_imp(vm, input);
 
     Clock { m:1, t:4 }
 }
@@ -1117,10 +1130,9 @@ pub fn i_sbcr(vm : &mut Vm, src : Register) -> Clock {
 ///
 /// Syntax : `SBCHLm`
 pub fn i_sbchlm(vm : &mut Vm) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = mmu::rb(hl![vm], vm);
 
-    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_sbc_imp(vm, input);
 
     Clock { m:1, t:8 }
 }
@@ -1130,10 +1142,9 @@ pub fn i_sbchlm(vm : &mut Vm) -> Clock {
 ///
 /// Syntax : `SBCd8`
 pub fn i_sbcd8(vm : &mut Vm) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = read_program_byte(vm);
 
-    reg![vm ; Register::A] = i_sub_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_sbc_imp(vm, input);
 
     Clock { m:2, t:8 }
 }
@@ -1249,7 +1260,7 @@ pub fn i_adcr(vm : &mut Vm, src : Register) -> Clock {
     let carry = flag![vm ; Flag::C] as u8;
     let input = reg![vm ; src];
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
 
     Clock { m:1, t:4 }
 }
@@ -1262,7 +1273,7 @@ pub fn i_adchlm(vm : &mut Vm) -> Clock {
     let carry = flag![vm ; Flag::C] as u8;
     let input = mmu::rb(hl![vm], vm);
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
 
     Clock { m:1, t:8 }
 }
@@ -1275,7 +1286,7 @@ pub fn i_adcd8(vm : &mut Vm) -> Clock {
     let carry = flag![vm ; Flag::C] as u8;
     let input = read_program_byte(vm);
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry);
+    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
 
     Clock { m:2, t:8 }
 }

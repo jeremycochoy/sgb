@@ -251,13 +251,13 @@ pub fn render_scanline(vm : &mut Vm) {
     let mut out_idx = -((x as isize) % 8);
     for tile in pixels_line {
         for (r, g, b) in tile {
-            let addr = (out_addr + out_idx) as usize;
-            if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) * 3 {
+            let addr = (out_addr + out_idx * 3) as usize;
+            if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) {
                 vm.gpu.rendering_memory[addr] = r;
                 vm.gpu.rendering_memory[addr + 1] = g;
                 vm.gpu.rendering_memory[addr + 2] = b;
             }
-            out_idx += 3;
+            out_idx += 1;
         }
     }
 }
