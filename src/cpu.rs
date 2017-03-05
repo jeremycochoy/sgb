@@ -184,7 +184,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     // Run the instruction
     let opcode = read_program_byte(vm);
-    let Instruction(_, fct) = match opcode {
+    let Instruction(name, fct) = match opcode {
         0xCB => dispatch_cb(read_program_byte(vm)),
         _    => dispatch(opcode),
     };
@@ -202,9 +202,9 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     // Debug :
-    if vm.cpu.clock.t % 100 == 0 {
-        //println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
-    }
+//    if vm.cpu.clock.t % 100 == 0 {
+        println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
+//    }
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     gpu::update_gpu_mode(vm, clock.t);
@@ -277,6 +277,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x34 => mk_inst![vm> "INHLm",   i_inchlm(vm)],
         0x35 => mk_inst![vm> "DECHLm",  i_dechlm(vm)],
         0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
+        0x37 => mk_inst![vm> "SCF",     i_scf(vm)],
         // 0x37 =>
         0x38 => mk_inst![vm> "JRfZ",    i_jrf(vm, Flag::C)],
         0x39 => mk_inst![vm> "ADDHLSP", i_addhlsp(vm)],
@@ -430,6 +431,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xC4 => mk_inst![vm> "CALLnZ",  i_callnf(vm, Flag::Z)],
         0xC5 => mk_inst![vm> "PUSHBC",  i_push(vm, Register::B, Register::C)],
         0xC6 => mk_inst![vm> "ADDd8",   i_addd8(vm)],
+        0xC7 => mk_inst![vm> "RST00h",  i_rst(vm, 0x00)],
         0xC8 => mk_inst![vm> "RETZ",    i_retf(vm, Flag::Z)],
         0xC9 => mk_inst![vm> "RET",     i_ret(vm)],
         0xCA => mk_inst![vm> "JPfZ",    i_jpf(vm, Flag::Z)],
@@ -437,7 +439,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xCC => mk_inst![vm> "CALLZ",   i_callf(vm, Flag::Z)],
         0xCD => mk_inst![vm> "CALL",    i_call(vm)],
         0xCE => mk_inst![vm> "ADCd8",   i_adcd8(vm)],
-        // 0xCF =>
+        0xCF => mk_inst![vm> "RST08h",  i_rst(vm, 0x08)],
 
         0xD0 => mk_inst![vm> "RETNC",   i_retnf(vm, Flag::C)],
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
@@ -445,21 +447,25 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xD4 => mk_inst![vm> "CALLnC",  i_callnf(vm, Flag::C)],
         0xD5 => mk_inst![vm> "PUSHDE",  i_push(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
+        0xD7 => mk_inst![vm> "RST10h",  i_rst(vm, 0x10)],
         0xD8 => mk_inst![vm> "RETC",    i_retf(vm, Flag::C)],
         0xD9 => mk_inst![vm> "RETI",    i_reti(vm)],
         0xDA => mk_inst![vm> "JPfC",    i_jpf(vm, Flag::C)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
         0xDE => mk_inst![vm> "SBCd8",   i_sbcd8(vm)],
+        0xDF => mk_inst![vm> "RST18h",  i_rst(vm, 0x18)],
 
         0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
         0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE6 => mk_inst![vm> "ANDd8",   i_andd8(vm)],
+        0xE7 => mk_inst![vm> "RST20h",  i_rst(vm, 0x20)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xE9 => mk_inst![vm> "JPHLm",   i_jphlm(vm)],
         0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
+        0xEF => mk_inst![vm> "RST28h",  i_rst(vm, 0x28)],
 
         0xF0 => mk_inst![vm> "LDHAa8m", i_ldhaa8m(vm)],
         0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
@@ -467,9 +473,11 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF3 => mk_inst![vm> "DI",      i_di(vm)],
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
+        0xF7 => mk_inst![vm> "RST30h",  i_rst(vm, 0x30)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
         0xFB => mk_inst![vm> "EI",      i_ei(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
+        0xFF => mk_inst![vm> "RST38h",  i_rst(vm, 0x38)],
 
         _ => panic!(format!("missing instruction 0x{:02X} !", opcode)),
     }
@@ -1481,7 +1489,6 @@ pub fn i_callnf(vm : &mut Vm, flag : Flag) -> Clock {
     }
 }
 
-
 /// Return from a function
 ///
 /// Actualy pop PC from the stack
@@ -1805,5 +1812,28 @@ pub fn i_ccf(vm : &mut Vm) -> Clock {
     set_flag(vm, Flag::N, false);
     set_flag(vm, Flag::H, false);
 
+    Clock { m:1, t:4 }
+}
+
+/// RST : Push the stack and jump to a predetermined addr
+///
+/// Syntax : `RST addr:u16`
+pub fn i_rst(vm : &mut Vm, addr : u16) -> Clock {
+    // Push PC on the stack
+    sp![vm] = sp![vm].wrapping_sub(2);
+    mmu::ww(sp![vm], pc![vm], vm);
+
+    // Update PC
+    pc![vm] = addr;
+    Clock { m:1, t:16 }
+}
+
+/// SCF : Set Carry Flag
+///
+/// Syntax : `SCF`
+pub fn i_scf(vm : &mut Vm) -> Clock {
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, false);
+    set_flag(vm, Flag::C, true);
     Clock { m:1, t:4 }
 }
