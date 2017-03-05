@@ -268,7 +268,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x2C => mk_inst![vm> "INCL",    i_incr(vm, Register::L)],
         0x2D => mk_inst![vm> "DECL",    i_decr(vm, Register::L)],
         0x2E => mk_inst![vm> "LDLd8",   i_ldrd8(vm, Register::L)],
-        // 0x2F =>
+        0x2F => mk_inst![vm> "CPL",     i_cpl(vm)],
 
         0x30 => mk_inst![vm> "JRnfC",   i_jrnf(vm, Flag::C)],
         0x31 => mk_inst![vm> "LDSPd16", i_ldspd16(vm)],
@@ -285,7 +285,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x3C => mk_inst![vm> "INCA",    i_incr(vm, Register::A)],
         0x3D => mk_inst![vm> "DECA",    i_decr(vm, Register::A)],
         0x3E => mk_inst![vm> "LDAd8",   i_ldrd8(vm, Register::A)],
-        // 0x3F =>
+        0x3F => mk_inst![vm> "CCF",     i_ccf(vm)],
 
         0x40 => mk_inst![vm> "LDBB",    i_ldrr(vm, Register::B, Register::B)],
         0x41 => mk_inst![vm> "LDBC",    i_ldrr(vm, Register::B, Register::C)],
@@ -1725,5 +1725,32 @@ pub fn i_di(vm : &mut Vm) -> Clock {
 /// Syntax : `DI`
 pub fn i_ei(vm : &mut Vm) -> Clock {
     vm.cpu.interrupt = InterruptState::IEnableNextInst;
+    Clock { m:1, t:4 }
+}
+
+/// Binary complement to A register
+///
+/// A <- ~A
+/// Syntax : `CPL`
+pub fn i_cpl(vm : &mut Vm) -> Clock {
+    reg![vm ; Register::A] = !reg![vm ; Register::A];
+
+    set_flag(vm, Flag::N, true);
+    set_flag(vm, Flag::H, true);
+
+    Clock { m:1, t:4 }
+}
+
+/// Complement of carry flag
+///
+/// Carry <- ~Carry
+/// Syntax : `CCF`
+pub fn i_ccf(vm : &mut Vm) -> Clock {
+    let carry = flag![vm ; Flag::C];
+
+    set_flag(vm, Flag::C, !carry);
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, false);
+
     Clock { m:1, t:4 }
 }
