@@ -171,7 +171,7 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// The index of the tile is given by `tile_idx`.
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
-pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u8) -> Vec<u8> {
+pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u16) -> Vec<u8> {
 
     // TODO : Select right tileset
     // Each tile contain 8 line. Each line is stored in 2 bytes.
@@ -214,7 +214,7 @@ pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_id
 /// The slice's length is one more tile that can be displayed on a line.
 /// This allow to display only a part of the first and last tile (wen scx and
 /// scy are not multiples of 8).
-pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u8, y : u8) -> &'a [u8] {
+pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u16, y : u16) -> &'a [u8] {
     let x = x as usize;
     let y = y as usize;
     let addr = if gpu.lcdc.bg_tile_map {0x9C00} else {0x9800};
@@ -228,8 +228,8 @@ pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u8, y : u8) ->
 /// Render the current line of pixel on the rendering_memory
 pub fn render_scanline(vm : &mut Vm) {
     // Compute the coordinates of the upper left corner of the line
-    let x = vm.gpu.scx;
-    let y = vm.gpu.scy + vm.gpu.line;
+    let x = vm.gpu.scx as u16;
+    let y = (vm.gpu.scy as u16) + (vm.gpu.line as u16);
 
     // Compute the line of tiles
     let map_x = x / 8;

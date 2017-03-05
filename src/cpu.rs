@@ -1195,7 +1195,7 @@ pub fn i_add_imp16(vm : &mut Vm, a: u16, b : u16) -> u16 {
     let sum = a.wrapping_add(b);
 
     set_flag(vm, Flag::N, false);
-    set_flag(vm, Flag::H, (0x0FFF & a + 0x0FFF & b) & 0x1000 != 0);
+    set_flag(vm, Flag::H, ((0x0FFF & a) + (0x0FFF & b)) & 0x1000 != 0);
     set_flag(vm, Flag::C, (b as u32) + (a as u32) > 0xFFFF);
 
     return sum
