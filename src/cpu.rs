@@ -8,7 +8,7 @@ use std::boxed::Box;
 // Registers and utilitary functions to manipulate them
 //////////////////////////////////////////////////////////
 
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Registers {
         // Registers (a, b, c, d, e, h, l, f) :
         pub rs : [u8 ; 8],
@@ -16,6 +16,16 @@ pub struct Registers {
         pub pc : u16,
         // Stack pointer
         pub sp : u16,
+}
+
+impl Default for Registers {
+    fn default() -> Registers {
+        Registers {
+            rs : Default::default(),
+            pc : 0x0000,
+            sp : 0xFFFE,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
