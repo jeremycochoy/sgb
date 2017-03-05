@@ -1058,7 +1058,7 @@ pub fn i_sub_imp(vm : &mut Vm, value : u8) -> u8 {
     reset_flags(vm);
     set_flag(vm, Flag::Z, diff == 0);
     set_flag(vm, Flag::N, true);
-    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b) > 0xF);
+    set_flag(vm, Flag::H, 0x0F & b > 0x0F & a);
     set_flag(vm, Flag::C, b > a);
     return diff
 }
@@ -1108,7 +1108,7 @@ pub fn i_sbc_imp(vm : &mut Vm, value : u8) -> u8 {
     reset_flags(vm);
     set_flag(vm, Flag::Z, diff == 0);
     set_flag(vm, Flag::N, true);
-    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b).wrapping_sub(carry) & 0x10 == 0x10);
+    set_flag(vm, Flag::H, (0x0F & b) + carry > 0x0F & a);
     set_flag(vm, Flag::C, (carry as u16) + (b as u16) > a as u16);
     return diff
 }
@@ -1149,7 +1149,6 @@ pub fn i_sbcd8(vm : &mut Vm) -> Clock {
     Clock { m:2, t:8 }
 }
 
-
 /// Implement adding value:u8 to the register A and set the flags
 pub fn i_add_imp(vm : &mut Vm, value : u8) -> u8 {
     let a = reg![vm ; Register::A];
@@ -1158,7 +1157,7 @@ pub fn i_add_imp(vm : &mut Vm, value : u8) -> u8 {
     reset_flags(vm);
     set_flag(vm, Flag::Z, sum == 0);
     set_flag(vm, Flag::N, false);
-    set_flag(vm, Flag::H, (0x0F & a).wrapping_sub(0x0F & b) > 0xF);
+    set_flag(vm, Flag::H, (0x0F & a) + (0x0F & b) > 0xF);
     set_flag(vm, Flag::C, (b as u16) + (a as u16) > 0xFF);
     return sum
 }
@@ -1252,15 +1251,28 @@ pub fn i_addspr8(vm : &mut Vm) -> Clock {
     Clock { m:1, t:8 }
 }
 
+/// Implement adding value:u8 + carry to the register A and set the flags
+pub fn i_adc_imp(vm : &mut Vm, value : u8) -> u8 {
+    let carry = flag![vm ; Flag::C] as u8;
+    let a = reg![vm ; Register::A];
+    let b = value;
+    let sum = a.wrapping_add(b).wrapping_add(carry);
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, sum == 0);
+    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::H, (0x0F & a) + (0x0F & b) + carry > 0xF);
+    set_flag(vm, Flag::C, (b as u16) + (a as u16) + (carry as u16) > 0xFF);
+    return sum
+}
+
 /// Add src:Register + carry to A and set the flags Z/H/C.
 /// Set register N to 1.
 ///
 /// Syntax : `ADC src:Register`
 pub fn i_adcr(vm : &mut Vm, src : Register) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = reg![vm ; src];
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
+    reg![vm ; Register::A] = i_adc_imp(vm, input);
 
     Clock { m:1, t:4 }
 }
@@ -1270,10 +1282,9 @@ pub fn i_adcr(vm : &mut Vm, src : Register) -> Clock {
 ///
 /// Syntax : `ADCHLm`
 pub fn i_adchlm(vm : &mut Vm) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = mmu::rb(hl![vm], vm);
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
+    reg![vm ; Register::A] = i_adc_imp(vm, input);
 
     Clock { m:1, t:8 }
 }
@@ -1283,10 +1294,9 @@ pub fn i_adchlm(vm : &mut Vm) -> Clock {
 ///
 /// Syntax : `CPd8`
 pub fn i_adcd8(vm : &mut Vm) -> Clock {
-    let carry = flag![vm ; Flag::C] as u8;
     let input = read_program_byte(vm);
 
-    reg![vm ; Register::A] = i_add_imp(vm, input + carry); //TODO: + carry can overflow!!!
+    reg![vm ; Register::A] = i_adc_imp(vm, input);
 
     Clock { m:2, t:8 }
 }
