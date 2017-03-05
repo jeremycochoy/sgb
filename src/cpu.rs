@@ -529,6 +529,15 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x2E => mk_inst![vm> "SRAHLm",   i_srahlm(vm)],
         0x2F => mk_inst![vm> "SRAA",     i_sra(vm, Register::A)],
 
+        0x30 => mk_inst![vm> "SWAPB",     i_swap(vm, Register::B)],
+        0x31 => mk_inst![vm> "SWAPC",     i_swap(vm, Register::C)],
+        0x32 => mk_inst![vm> "SWAPD",     i_swap(vm, Register::D)],
+        0x33 => mk_inst![vm> "SWAPE",     i_swap(vm, Register::E)],
+        0x34 => mk_inst![vm> "SWAPH",     i_swap(vm, Register::H)],
+        0x35 => mk_inst![vm> "SWAPL",     i_swap(vm, Register::L)],
+        0x36 => mk_inst![vm> "SWAPHLm",   i_swaphlm(vm)],
+        0x37 => mk_inst![vm> "SWAPA",     i_swap(vm, Register::A)],
+
         0x40 => mk_inst![vm> "BIT0B",    i_bitr(vm, 0, Register::B)],
         0x41 => mk_inst![vm> "BIT0C",    i_bitr(vm, 0, Register::C)],
         0x42 => mk_inst![vm> "BIT0D",    i_bitr(vm, 0, Register::D)],
@@ -805,6 +814,29 @@ pub fn i_xord8(vm : &mut Vm) -> Clock {
     let d8 = read_program_byte(vm);
     i_xor_imp(d8, vm);
     Clock { m:1, t:8 }
+}
+
+/// Implement swap
+pub fn i_swap_imp(value : u8, vm : &mut Vm) -> u8{
+    let result = value << 4 | value >> 4;
+    reset_flags(vm);
+    set_flag(vm, Flag::Z, result == 0);
+    return result;
+}
+
+/// Swap the bits 0-4 and 5-7 of the register `reg`
+/// Syntax : `SWAP src:Register`
+pub fn i_swap(vm : &mut Vm, src : Register) -> Clock {
+    reg![vm ; src] = i_swap_imp(reg![vm ; src], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Swap the bits 0-4 and 5-7 of (HL)
+/// Syntax : `SWAPHLm`
+pub fn i_swaphlm(vm : &mut Vm) -> Clock {
+    let result = i_swap_imp(mmu::rb(hl![vm], vm), vm);
+    mmu::wb(hl![vm], result, vm);
+    Clock { m:2, t:16 }
 }
 
 /// Implementation of OR of a value with the register A, stored into A
