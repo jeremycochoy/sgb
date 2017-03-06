@@ -137,3 +137,28 @@ fn dec() {
     i_decr(&mut vm, Register::A);
     assert!(reg![vm ; Register::A] == 0xFF);
 }
+
+#[test]
+fn adc() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+
+    reg![vm ; Register::A] = 3;
+    set_flag(&mut vm, Flag::C, true);
+
+    i_adcr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 7);
+    assert!(flag![vm ; Flag::C] == false);
+
+    reg![vm ; Register::B] = 3;
+    i_adcr(&mut vm, Register::B);
+    assert!(reg![vm ; Register::A] == 10);
+    assert!(flag![vm ; Flag::C] == false);
+
+    reg![vm ; Register::A] = 0xFF;
+    reg![vm ; Register::B] = 3;
+    set_flag(&mut vm, Flag::C, true);
+    i_adcr(&mut vm, Register::B);
+    assert!(reg![vm ; Register::A] == 3);
+}
