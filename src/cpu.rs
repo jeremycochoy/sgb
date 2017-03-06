@@ -54,6 +54,7 @@ pub enum Flag {
 ///
 /// Syntax : `reg![vm; register_name]`
 /// where register_name : Register
+#[macro_export]
 macro_rules! reg {
     [$vm:expr ; $r:expr] => ($vm.cpu.registers.rs[$r as usize]);
 }
@@ -61,6 +62,7 @@ macro_rules! reg {
 /// Macro for accessing PC from a vm
 ///
 /// Syntax : `pc![vm]`
+#[macro_export]
 macro_rules! pc {
     [$vm:expr] => ($vm.cpu.registers.pc);
 }
@@ -76,6 +78,7 @@ macro_rules! sp {
 /// (it's read only).
 ///
 /// Syntax : `hl![vm]`
+#[macro_export]
 macro_rules! hl {
     [$vm:expr] => (
         w_combine(reg![$vm ; Register::H],
@@ -212,9 +215,9 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     // Debug :
-//    if vm.cpu.clock.t % 100 == 0 {
-        println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
-//    }
+    //    if vm.cpu.clock.t % 100 == 0 {
+    //        println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
+    //    }
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     gpu::update_gpu_mode(vm, clock.t);
@@ -288,7 +291,6 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x35 => mk_inst![vm> "DECHLm",  i_dechlm(vm)],
         0x36 => mk_inst![vm> "LDHLmd8", i_ldhlmd8(vm)],
         0x37 => mk_inst![vm> "SCF",     i_scf(vm)],
-        // 0x37 =>
         0x38 => mk_inst![vm> "JRfZ",    i_jrf(vm, Flag::C)],
         0x39 => mk_inst![vm> "ADDHLSP", i_addhlsp(vm)],
         0x3A => mk_inst![vm> "LDDAHLm", i_lddahlm(vm)],
@@ -355,6 +357,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x73 => mk_inst![vm> "LDHLmE",  i_ldr16mr(vm, Register::H, Register::L, Register::E)],
         0x74 => mk_inst![vm> "LDHLmH",  i_ldr16mr(vm, Register::H, Register::L, Register::H)],
         0x75 => mk_inst![vm> "LDHLmL",  i_ldr16mr(vm, Register::H, Register::L, Register::L)],
+        0x76 => mk_inst![vm> "HALT",    Default::default()],
         // 0x76 => HALT
         0x77 => mk_inst![vm> "LDHLmA",  i_ldr16mr(vm, Register::H, Register::L, Register::A)],
         0x78 => mk_inst![vm> "LDAB",    i_ldrr(vm, Register::A, Register::B)],
@@ -547,14 +550,22 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x2E => mk_inst![vm> "SRAHLm",   i_srahlm(vm)],
         0x2F => mk_inst![vm> "SRAA",     i_sra(vm, Register::A)],
 
-        0x30 => mk_inst![vm> "SWAPB",     i_swap(vm, Register::B)],
-        0x31 => mk_inst![vm> "SWAPC",     i_swap(vm, Register::C)],
-        0x32 => mk_inst![vm> "SWAPD",     i_swap(vm, Register::D)],
-        0x33 => mk_inst![vm> "SWAPE",     i_swap(vm, Register::E)],
-        0x34 => mk_inst![vm> "SWAPH",     i_swap(vm, Register::H)],
-        0x35 => mk_inst![vm> "SWAPL",     i_swap(vm, Register::L)],
-        0x36 => mk_inst![vm> "SWAPHLm",   i_swaphlm(vm)],
-        0x37 => mk_inst![vm> "SWAPA",     i_swap(vm, Register::A)],
+        0x30 => mk_inst![vm> "SWAPB",    i_swap(vm, Register::B)],
+        0x31 => mk_inst![vm> "SWAPC",    i_swap(vm, Register::C)],
+        0x32 => mk_inst![vm> "SWAPD",    i_swap(vm, Register::D)],
+        0x33 => mk_inst![vm> "SWAPE",    i_swap(vm, Register::E)],
+        0x34 => mk_inst![vm> "SWAPH",    i_swap(vm, Register::H)],
+        0x35 => mk_inst![vm> "SWAPL",    i_swap(vm, Register::L)],
+        0x36 => mk_inst![vm> "SWAPHLm",  i_swaphlm(vm)],
+        0x37 => mk_inst![vm> "SWAPA",    i_swap(vm, Register::A)],
+        0x38 => mk_inst![vm> "SRLB",     i_srl(vm, Register::B)],
+        0x39 => mk_inst![vm> "SRLC",     i_srl(vm, Register::C)],
+        0x3A => mk_inst![vm> "SRLD",     i_srl(vm, Register::D)],
+        0x3B => mk_inst![vm> "SRLE",     i_srl(vm, Register::E)],
+        0x3C => mk_inst![vm> "SRLH",     i_srl(vm, Register::H)],
+        0x3D => mk_inst![vm> "SRLL",     i_srl(vm, Register::L)],
+        0x3E => mk_inst![vm> "SRLHLm",   i_srlhlm(vm)],
+        0x3F => mk_inst![vm> "SRLA",     i_srl(vm, Register::A)],
 
         0x40 => mk_inst![vm> "BIT0B",    i_bitr(vm, 0, Register::B)],
         0x41 => mk_inst![vm> "BIT0C",    i_bitr(vm, 0, Register::C)],
@@ -1698,6 +1709,44 @@ pub fn i_srahlm(vm : &mut Vm) -> Clock {
     // Read value
     let value = mmu::rb(hl![vm], vm);
     let result = i_sra_imp(value, vm);
+    // Write value
+    mmu::wb(hl![vm], result, vm);
+
+    Clock { m:2, t:16 }
+}
+
+/// Implementation of SRL
+pub fn i_srl_imp(value : u8, vm : &mut Vm) -> u8 {
+    let result = value >> 1;
+
+    reset_flags(vm);
+    set_flag(vm, Flag::C, value & 0x01 != 0); // Take value's bit 0
+    set_flag(vm, Flag::Z, result == 0);
+
+    return result;
+}
+
+/// Shift right
+///
+/// Shift the value in the register `reg` of 1 to the right.
+/// Bit 7 is set to 0, and register's bit 0 goes in carry.
+///
+/// Syntax : `SRL reg:Register`
+pub fn i_srl(vm : &mut Vm, reg : Register) -> Clock {
+    reg![vm ; reg] = i_srl_imp(reg![vm ; reg], vm);
+    Clock { m:2, t:8 }
+}
+
+/// Shift right
+///
+/// Shift the value in (HL) of 1 to the right.
+/// Bit 7 is set to 0, and register's bit 0 goes in carry.
+///
+/// Syntax : `SRLHLm`
+pub fn i_srlhlm(vm : &mut Vm) -> Clock {
+    // Read value
+    let value = mmu::rb(hl![vm], vm);
+    let result = i_srl_imp(value, vm);
     // Write value
     mmu::wb(hl![vm], result, vm);
 

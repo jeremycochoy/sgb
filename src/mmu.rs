@@ -117,7 +117,7 @@ pub fn rw(addr : u16, vm : &Vm) -> u16 {
     let h = rb(addr + 1, vm);
     w_combine(h, l)
 }
-
+static mut debug :u8 = 0;
 /// Write a byte to the MMU at address addr (TODO)
 pub fn wb(addr : u16, value : u8, vm : &mut Vm) {
     let addr = addr as usize;
@@ -137,6 +137,14 @@ pub fn wb(addr : u16, value : u8, vm : &mut Vm) {
         // Otherwise, it should be an IO
         _ => io::dispatch_io_write(addr, value, vm),
     }
+    if addr == 0xFF01 {unsafe {
+        debug = value;}
+    }
+    // Debug test roms
+    if addr == 0xFF02 && value == 0x81 {unsafe {
+        print!("{}", debug as char);
+    }}
+
 }
 
 /// Write a word (2 bytes) into the MMU at adress addr

@@ -66,8 +66,10 @@ pub fn main() {
 
     // Load the VM
     let mut vm = load_rom(file_name).unwrap();
+    // Disable bios if asked
     if no_boot_rom {
         vm.cpu.registers.pc = 0x100;
+        vm.mmu.bios_enabled = false;
     }
 
     // Event Loop
