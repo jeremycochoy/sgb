@@ -82,3 +82,37 @@ fn rra() {
     assert!(reg![vm ; Register::A] == 0b01000101);
     assert!(flag![vm ; Flag::C] == false);
 }
+
+#[test]
+fn rla() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+
+    reg![vm ; Register::A] = 0b10000101;
+    set_flag(&mut vm, Flag::C, false); // carry 0
+
+    // Rotate 0b01001100; and carry 0
+    i_rl(&mut vm, Register::A);
+
+    // Check that the rotation is ok
+    assert!(reg![vm ; Register::A] == 0b00001010);
+    // Check the new state of carry
+    assert!(flag![vm ; Flag::C] == true);
+
+    // Rotate again
+    i_rl(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0b00010101);
+    assert!(flag![vm ; Flag::C] == false);
+
+    // Rotate so that we go back to the initial state
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    i_rl(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0b10000101);
+    assert!(flag![vm ; Flag::C] == false);
+}
