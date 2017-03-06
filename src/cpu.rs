@@ -992,7 +992,7 @@ pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
     set_flag(vm, Flag::Z, final_val == 0);
     // intial_val - 1 == initial_val + 0xFF
     set_flag(vm, Flag::H, (initial_val & 0x0F + 0x0F > 0x0F));
-    set_flag(vm, Flag::N, false);
+    set_flag(vm, Flag::N, true);
 }
 
 /// Decrement the register given, and set Z, H as expected.

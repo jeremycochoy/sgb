@@ -116,3 +116,24 @@ fn rla() {
     assert!(reg![vm ; Register::A] == 0b10000101);
     assert!(flag![vm ; Flag::C] == false);
 }
+
+#[test]
+fn dec() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    reg![vm ; Register::A] = 2;
+
+    i_decr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 1);
+    assert!(flag![vm ; Flag::Z] == false);
+    assert!(flag![vm ; Flag::N] == true);
+
+    i_decr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0);
+    assert!(flag![vm ; Flag::Z] == true);
+    assert!(flag![vm ; Flag::N] == true);
+
+    i_decr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0xFF);
+}
