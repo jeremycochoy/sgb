@@ -91,6 +91,7 @@ macro_rules! hl {
 /// (it's read only).
 ///
 /// Syntax : `hl![vm]`
+#[macro_export]
 macro_rules! flag {
     [$vm:expr ; $flag:expr] => {{
         0x01 & reg![$vm ; Register::F] >> ($flag as usize) == 0x01
@@ -1619,7 +1620,7 @@ pub fn i_rr_imp(value : u8, vm : &mut Vm) -> u8 {
 ///
 /// Syntax : `RR reg:Register`
 pub fn i_rr(vm : &mut Vm, reg : Register) -> Clock {
-    reg![vm ; reg] = i_rl_imp(reg![vm ; reg], vm);
+    reg![vm ; reg] = i_rr_imp(reg![vm ; reg], vm);
     Clock { m:2, t:8 }
 }
 
@@ -1632,7 +1633,7 @@ pub fn i_rr(vm : &mut Vm, reg : Register) -> Clock {
 pub fn i_rrhlm(vm : &mut Vm) -> Clock {
     // Read value
     let value = mmu::rb(hl![vm], vm);
-    let result = i_rl_imp(value, vm);
+    let result = i_rr_imp(value, vm);
     // Write value
     mmu::wb(hl![vm], result, vm);
 

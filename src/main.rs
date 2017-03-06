@@ -86,7 +86,7 @@ pub fn main() {
         }
 
         // Run 100 instructions
-        for _ in 0..3000 {
+        for _ in 0..300 {
             execute_one_instruction(&mut vm);
         }
 

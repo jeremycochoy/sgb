@@ -34,10 +34,51 @@ fn ld_without_dispatch() {
 
     // Move back pc to 0x100
     pc![vm] = 0x100;
-    reg![vm ; Register::H] = 0x80;
-    reg![vm ; Register::L] = 0x80;
+    vm.mmu.rom[0x100] = 0x27;
+    vm.mmu.rom[0x101] = 0x80;
+    vm.mmu.rom[0x102] = 0xCE;
+
+    i_ldr16d16(&mut vm, Register::H, Register::L);
+    assert!(hl![vm] == 0x8027);
 
     i_ldhlmd8(&mut vm);
-
     assert!(rb(hl![vm], &vm) == 0xCE);
+
+    i_ldr16mr(&mut vm, Register::H, Register::L, Register::B);
+    assert!(rb(hl![vm], &vm) == 0x1F);
+}
+
+
+#[test]
+fn rra() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+
+    reg![vm ; Register::A] = 0b01000101;
+    set_flag(&mut vm, Flag::C, false); // carry 0
+
+    // Rotate 0b01001100; and carry 0
+    i_rr(&mut vm, Register::A);
+
+    // Check that the rotation is ok
+    assert!(reg![vm ; Register::A] == 0b00100010);
+    // Check the new state of carry
+    assert!(flag![vm ; Flag::C] == true);
+
+    // Rotate again
+    i_rr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0b10010001);
+    assert!(flag![vm ; Flag::C] == false);
+
+    // Rotate so that we go back to the initial state
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    i_rr(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0b01000101);
+    assert!(flag![vm ; Flag::C] == false);
 }
