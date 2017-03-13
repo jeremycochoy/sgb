@@ -1543,7 +1543,6 @@ pub fn i_retf(vm : &mut Vm, flag : Flag) -> Clock {
         Clock { m:1, t:20 }
     }
     else {
-        read_program_word(vm);
         Clock { m:1, t:8 }
     }
 }
@@ -1554,7 +1553,6 @@ pub fn i_retf(vm : &mut Vm, flag : Flag) -> Clock {
 /// Syntax : `RET flag:Flag`
 pub fn i_retnf(vm : &mut Vm, flag : Flag) -> Clock {
     if flag![vm ; flag] {
-        read_program_word(vm);
         Clock { m:1, t:8 }
     }
     else {

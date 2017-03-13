@@ -226,3 +226,45 @@ fn call_ret() {
     assert!(sp![vm] == 0xFFFE);
     assert!(pc![vm] == 0x0102);
 }
+
+#[test]
+fn callf_retf() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    // Write 0x0200 in little endian
+    vm.mmu.rom[0x100] = 0x00;
+    vm.mmu.rom[0x101] = 0x02;
+    vm.mmu.rom[0x102] = 0x00;
+    vm.mmu.rom[0x103] = 0x02;
+
+    set_flag(&mut vm, Flag::Z, false);
+    i_callf(&mut vm, Flag::Z);
+
+    // Check nothing happened
+    assert!(sp![vm] == 0xFFFE);
+    assert!(pc![vm] == 0x0102);
+
+    set_flag(&mut vm, Flag::Z, true);
+    i_callf(&mut vm, Flag::Z);
+
+    // Check state of PC and SP
+    assert!(sp![vm] == 0xFFFE - 2);
+    assert!(pc![vm] == 0x0200);
+    // Check that the address of the next instruction
+    // on the stack is the right one
+    assert!(mmu::rw(sp![vm], &vm) == 0x0104);
+
+    set_flag(&mut vm, Flag::Z, false);
+    i_retf(&mut vm, Flag::Z);
+    assert!(sp![vm] == 0xFFFE - 2);
+    assert!(pc![vm] == 0x0200);
+
+    set_flag(&mut vm, Flag::Z, true);
+    i_retf(&mut vm, Flag::Z);
+    // Check that we are back at 0x0102
+    assert!(sp![vm] == 0xFFFE);
+    assert!(pc![vm] == 0x0104);
+}
