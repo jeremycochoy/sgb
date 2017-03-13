@@ -199,3 +199,30 @@ fn push_and_pop() {
     assert!(reg![vm ; Register::D] == 0x80);
     assert!(reg![vm ; Register::E] == 0x5D);
 }
+
+#[test]
+fn call_ret() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    // Write 0x0200 in little endian
+    vm.mmu.rom[0x100] = 0x00;
+    vm.mmu.rom[0x101] = 0x02;
+
+    i_call(&mut vm);
+
+    // Check state of PC and SP
+    assert!(sp![vm] == 0xFFFE - 2);
+    assert!(pc![vm] == 0x0200);
+    // Check that the address of the next instruction
+    // on the stack is the right one
+    assert!(mmu::rw(sp![vm], &vm) == 0x0102);
+
+    i_ret(&mut vm);
+
+    // Check that we are back at 0x0102
+    assert!(sp![vm] == 0xFFFE);
+    assert!(pc![vm] == 0x0102);
+}
