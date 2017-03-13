@@ -70,6 +70,7 @@ macro_rules! pc {
 /// Macro for acessing SP from a vm
 ///
 /// Syntax : `sp![vm]`
+#[macro_export]
 macro_rules! sp {
     [$vm:expr] => ($vm.cpu.registers.sp);
 }

@@ -162,3 +162,40 @@ fn adc() {
     i_adcr(&mut vm, Register::B);
     assert!(reg![vm ; Register::A] == 3);
 }
+
+#[test]
+fn push_and_pop() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    // Put some values in BC and push them
+    reg![vm ; Register::B] = 0x80;
+    reg![vm ; Register::C] = 0x5D;
+
+    i_push(&mut vm, Register::B, Register::C);
+
+    assert!(sp![vm] == 0xFFFE - 2);
+    assert!(mmu::rw(sp![vm], &vm) == 0x805D);
+
+    // Put some values in HL and push them
+    reg![vm ; Register::H] = 0x10;
+    reg![vm ; Register::L] = 0x33;
+
+    i_push(&mut vm, Register::H, Register::L);
+    assert!(sp![vm] == 0xFFFE - 4);
+    assert!(mmu::rw(sp![vm], &vm) == 0x1033);
+
+    // Pop the HL's values into AF
+    i_pop(&mut vm, Register::A, Register::F);
+    assert!(sp![vm] == 0xFFFE - 2);
+    assert!(reg![vm ; Register::A] == 0x10);
+    assert!(reg![vm ; Register::F] == 0x33);
+
+    // Pop the HL's values into AF
+    i_pop(&mut vm, Register::D, Register::E);
+    assert!(sp![vm] == 0xFFFE);
+    assert!(reg![vm ; Register::D] == 0x80);
+    assert!(reg![vm ; Register::E] == 0x5D);
+}
