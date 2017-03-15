@@ -191,7 +191,7 @@ fn push_and_pop() {
     i_pop(&mut vm, Register::A, Register::F);
     assert!(sp![vm] == 0xFFFE - 2);
     assert!(reg![vm ; Register::A] == 0x10);
-    assert!(reg![vm ; Register::F] == 0x33);
+    assert!(reg![vm ; Register::F] == 0x33 & 0xF0);
 
     // Pop the HL's values into AF
     i_pop(&mut vm, Register::D, Register::E);
@@ -376,4 +376,23 @@ fn jmphl() {
     i_jphl(&mut vm);
 
     assert!(pc![vm] == 0x1033);
+}
+
+
+#[test]
+fn pop_af() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    // Put some values in HL
+    reg![vm ; Register::B] = 0x13;
+    reg![vm ; Register::C] = 0xFF;
+
+    i_push(&mut vm, Register::B, Register::C);
+    i_pop(&mut vm, Register::A, Register::F);
+
+    assert!(reg![vm ; Register::A] == 0x13);
+    assert!(reg![vm ; Register::F] == 0xF0);
 }

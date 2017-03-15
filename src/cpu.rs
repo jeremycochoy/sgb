@@ -136,6 +136,9 @@ pub fn set_r16(vm : &mut Vm, h : Register, l : Register, value : u16) {
     let (value_h, value_l) = w_uncombine(value);
     reg![vm ; h] = value_h;
     reg![vm ; l] = value_l;
+    if l == Register::F {
+        reg![vm ; l] &= 0xF0;
+    }
 }
 
 //////////////////////////////////////////
