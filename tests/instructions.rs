@@ -360,3 +360,20 @@ fn dec_flags() {
     assert!(flag![vm ; Flag::C] == false);
     assert!(flag![vm ; Flag::Z] == true);
 }
+
+
+#[test]
+fn jmphl() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    // Put some values in HL
+    reg![vm ; Register::H] = 0x10;
+    reg![vm ; Register::L] = 0x33;
+
+    i_jphl(&mut vm);
+
+    assert!(pc![vm] == 0x1033);
+}

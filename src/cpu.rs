@@ -485,7 +485,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xE6 => mk_inst![vm> "ANDd8",   i_andd8(vm)],
         0xE7 => mk_inst![vm> "RST20h",  i_rst(vm, 0x20)],
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
-        0xE9 => mk_inst![vm> "JPHLm",   i_jphlm(vm)],
+        0xE9 => mk_inst![vm> "JPHL",    i_jphl(vm)],
         0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
         0xEF => mk_inst![vm> "RST28h",  i_rst(vm, 0x28)],
@@ -1417,9 +1417,9 @@ pub fn i_jp(vm : &mut Vm) -> Clock {
 
 /// Read the next two bytes and jump to the address
 ///
-/// Syntax : `JPHLm`
-pub fn i_jphlm(vm : &mut Vm) -> Clock {
-    pc![vm] = mmu::rw(hl![vm], vm);
+/// Syntax : `JPHL`
+pub fn i_jphl(vm : &mut Vm) -> Clock {
+    pc![vm] = hl![vm];
     Clock { m:3, t:16 }
 }
 
