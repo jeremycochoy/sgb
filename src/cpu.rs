@@ -197,7 +197,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
         vm.mmu.bios_enabled = false;
     }
 
-    print!("0x{:04x}:", pc![vm]);
+    //print!("0x{:04x}:", pc![vm]);
 
     // Run the instruction
     let opcode = read_program_byte(vm);
@@ -207,13 +207,13 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     // Debug :
-    println!("{}\tSP:{:02X} AF{:02X}{:02X} BC{:02X}{:02X} DE{:02X}{:02X} HL{:02X}{:02X}",
+    /*println!("{}\tSP:{:02X} AF{:02X}{:02X} BC{:02X}{:02X} DE{:02X}{:02X} HL{:02X}{:02X}",
              name, sp![vm],
              reg![vm ; Register::A], reg![vm ; Register::F],
              reg![vm ; Register::B], reg![vm ; Register::C],
              reg![vm ; Register::D], reg![vm ; Register::E],
              reg![vm ; Register::H], reg![vm ; Register::L]
-    );
+    );*/
 
     let clock = (fct)(vm);
 
@@ -497,6 +497,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xF7 => mk_inst![vm> "RST30h",  i_rst(vm, 0x30)],
+        0xF9 => mk_inst![vm> "LDSPHL",  i_ldsphl(vm)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
         0xFB => mk_inst![vm> "EI",      i_ei(vm)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
@@ -821,6 +822,12 @@ pub fn i_ldspd16(vm : &mut Vm) -> Clock {
     let d16 = read_program_word(vm);
     sp![vm] = d16;
     Clock { m:3, t:12 }
+}
+
+/// LD SP <- HL
+pub fn i_ldsphl(vm : &mut Vm) -> Clock {
+    sp![vm] = hl![vm];
+    Clock { m:1, t:8 }
 }
 
 /// Implement xoring the register A with the value src_val
