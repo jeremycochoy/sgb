@@ -310,3 +310,53 @@ fn callnf_retnf() {
     assert!(sp![vm] == 0xFFFE);
     assert!(pc![vm] == 0x0104);
 }
+
+
+#[test]
+fn inc_flags() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    reg![vm ; Register::A] = 0;
+    set_flag(&mut vm, Flag::C, false);
+    i_incr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == false);
+    set_flag(&mut vm, Flag::C, true);
+    i_incr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == true);
+
+    assert!(flag![vm ; Flag::Z] == false);
+    assert!(flag![vm ; Flag::N] == false);
+    set_flag(&mut vm, Flag::C, false);
+    reg![vm ; Register::A] = 0xFF;
+    i_incr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == false);
+    assert!(flag![vm ; Flag::Z] == true);
+}
+
+
+#[test]
+fn dec_flags() {
+    let mut vm : Vm = Default::default();
+
+    pc![vm] = 0x100;
+    sp![vm] = 0xFFFE;
+
+    reg![vm ; Register::A] = 0x10;
+    set_flag(&mut vm, Flag::C, false);
+    i_decr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == false);
+    set_flag(&mut vm, Flag::C, true);
+    i_decr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == true);
+
+    assert!(flag![vm ; Flag::Z] == false);
+    assert!(flag![vm ; Flag::N] == true);
+    set_flag(&mut vm, Flag::C, false);
+    reg![vm ; Register::A] = 0x01;
+    i_decr(&mut vm, Register::A);
+    assert!(flag![vm ; Flag::C] == false);
+    assert!(flag![vm ; Flag::Z] == true);
+}

@@ -21,7 +21,7 @@ pub struct Registers {
 impl Default for Registers {
     fn default() -> Registers {
         Registers {
-            rs : Default::default(),
+            rs : [0x01, 0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0],
             pc : 0x0000,
             sp : 0xFFFE,
         }
@@ -197,12 +197,24 @@ pub fn execute_one_instruction(vm : &mut Vm) {
         vm.mmu.bios_enabled = false;
     }
 
+    print!("0x{:04x}:", pc![vm]);
+
     // Run the instruction
     let opcode = read_program_byte(vm);
     let Instruction(name, fct) = match opcode {
         0xCB => dispatch_cb(read_program_byte(vm)),
         _    => dispatch(opcode),
     };
+
+    // Debug :
+    println!("{}\tSP:{:02X} AF{:02X}{:02X} BC{:02X}{:02X} DE{:02X}{:02X} HL{:02X}{:02X}",
+             name, sp![vm],
+             reg![vm ; Register::A], reg![vm ; Register::F],
+             reg![vm ; Register::B], reg![vm ; Register::C],
+             reg![vm ; Register::D], reg![vm ; Register::E],
+             reg![vm ; Register::H], reg![vm ; Register::L]
+    );
+
     let clock = (fct)(vm);
 
     // Update CPU's clock
@@ -216,10 +228,6 @@ pub fn execute_one_instruction(vm : &mut Vm) {
         _ => vm.cpu.interrupt,
     };
 
-    // Debug :
-    //    if vm.cpu.clock.t % 100 == 0 {
-    //        println!("0x{:04x}:{}\t{:?}", pc![vm], name, vm.cpu.clock);
-    //    }
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     gpu::update_gpu_mode(vm, clock.t);
@@ -935,7 +943,6 @@ pub fn i_andd8(vm : &mut Vm) -> Clock {
 
 /// Implementation of the increment instruction (setting flags)
 pub fn i_inc_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
-    reset_flags(vm);
     set_flag(vm, Flag::Z, final_val == 0);
     set_flag(vm, Flag::H, (initial_val & 0x0F + 1 > 0x0F));
     set_flag(vm, Flag::N, false);
@@ -989,7 +996,6 @@ pub fn i_incsp(vm : &mut Vm) -> Clock {
 
 /// Implementation of the increment instruction (setting flags)
 pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
-    reset_flags(vm);
     set_flag(vm, Flag::Z, final_val == 0);
     // intial_val - 1 == initial_val + 0xFF
     set_flag(vm, Flag::H, (initial_val & 0x0F + 0x0F > 0x0F));
