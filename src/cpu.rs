@@ -639,7 +639,7 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x73 => mk_inst![vm> "BIT6E",    i_bitr(vm, 6, Register::E)],
         0x74 => mk_inst![vm> "BIT6H",    i_bitr(vm, 6, Register::H)],
         0x75 => mk_inst![vm> "BIT6L",    i_bitr(vm, 6, Register::L)],
-        0x76 => mk_inst![vm> "BIT6HLm",  i_bithlm(vm, 4)],
+        0x76 => mk_inst![vm> "BIT6HLm",  i_bithlm(vm, 6)],
         0x77 => mk_inst![vm> "BIT6A",    i_bitr(vm, 6, Register::A)],
         0x78 => mk_inst![vm> "BIT7B",    i_bitr(vm, 7, Register::B)],
         0x79 => mk_inst![vm> "BIT7C",    i_bitr(vm, 7, Register::C)],
