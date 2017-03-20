@@ -263,6 +263,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x0E => mk_inst![vm> "LDCd8",   i_ldrd8(vm, Register::C)],
         0x0F => mk_inst![vm> "RRCA",    i_rrca(vm)],
 
+        //0x10 => STOP
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
         0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
         0x13 => mk_inst![vm> "INCDE",   i_incr16(vm, Register::D, Register::E)],
@@ -371,7 +372,6 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x74 => mk_inst![vm> "LDHLmH",  i_ldr16mr(vm, Register::H, Register::L, Register::H)],
         0x75 => mk_inst![vm> "LDHLmL",  i_ldr16mr(vm, Register::H, Register::L, Register::L)],
         0x76 => mk_inst![vm> "HALT",    Default::default()],
-        // 0x76 => HALT
         0x77 => mk_inst![vm> "LDHLmA",  i_ldr16mr(vm, Register::H, Register::L, Register::A)],
         0x78 => mk_inst![vm> "LDAB",    i_ldrr(vm, Register::A, Register::B)],
         0x79 => mk_inst![vm> "LDAC",    i_ldrr(vm, Register::A, Register::C)],
@@ -470,6 +470,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xD0 => mk_inst![vm> "RETNC",   i_retnf(vm, Flag::C)],
         0xD1 => mk_inst![vm> "POPDE",   i_pop(vm, Register::D, Register::E)],
         0xD2 => mk_inst![vm> "JPnfC",   i_jpnf(vm, Flag::C)],
+        0xD3 => mk_inst![vm> "0xD3",    i_invalid(vm, 0xD3)],
         0xD4 => mk_inst![vm> "CALLnC",  i_callnf(vm, Flag::C)],
         0xD5 => mk_inst![vm> "PUSHDE",  i_push(vm, Register::D, Register::E)],
         0xD6 => mk_inst![vm> "SUBd8",   i_subd8(vm)],
@@ -477,13 +478,17 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xD8 => mk_inst![vm> "RETC",    i_retf(vm, Flag::C)],
         0xD9 => mk_inst![vm> "RETI",    i_reti(vm)],
         0xDA => mk_inst![vm> "JPfC",    i_jpf(vm, Flag::C)],
+        0xDB => mk_inst![vm> "0xDB",    i_invalid(vm, 0xDB)],
         0xDC => mk_inst![vm> "CALLC",   i_callf(vm, Flag::C)],
+        0xDD => mk_inst![vm> "0xDD",    i_invalid(vm, 0xDD)],
         0xDE => mk_inst![vm> "SBCd8",   i_sbcd8(vm)],
         0xDF => mk_inst![vm> "RST18h",  i_rst(vm, 0x18)],
 
         0xE0 => mk_inst![vm> "LDHa8mA", i_ldha8ma(vm)],
         0xE1 => mk_inst![vm> "POPHL",   i_pop(vm, Register::H, Register::L)],
         0xE2 => mk_inst![vm> "LDCmA",   i_ldcma(vm)],
+        0xE3 => mk_inst![vm> "0xE3",    i_invalid(vm, 0xE3)],
+        0xE4 => mk_inst![vm> "0xD3",    i_invalid(vm, 0xE4)],
         0xE5 => mk_inst![vm> "PUSHHL",  i_push(vm, Register::H, Register::L)],
         0xE6 => mk_inst![vm> "ANDd8",   i_andd8(vm)],
         0xE7 => mk_inst![vm> "RST20h",  i_rst(vm, 0x20)],
@@ -513,7 +518,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
         0xFF => mk_inst![vm> "RST38h",  i_rst(vm, 0x38)],
 
-        _ => panic!(format!("missing instruction 0x{:02X} !", opcode)),
+        _ => panic!(format!("Missing instruction 0x{:02X} !", opcode)),
     }
 }
 
@@ -792,7 +797,7 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0xFE => mk_inst![vm> "SET7HLm",  i_sethlm(vm, 7)],
         0xFF => mk_inst![vm> "SET7A",    i_set(vm, 7, Register::A)],
 
-        _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:02X} !", opcode)),
+        _ => panic!(format!("Missing instruction 0xCB:0x{:02X} !", opcode)),
     }
 }
 
