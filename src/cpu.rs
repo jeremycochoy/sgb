@@ -2191,14 +2191,14 @@ pub fn i_daa(vm : &mut Vm) -> Clock {
     let mut result = reg![vm ; Register::A] as u16;
 
     // In case of a substraction
-    if flag![vm ; Flag::Z] {
+    if flag![vm ; Flag::N] {
         if h {result = (result - 0x06) & 0xFF};
         if c {result -= 0x60};
     }
     // In case of an addition
     else {
-        if h {result = (result + 0x06) & 0xFF};
-        if c {result += 0x60};
+        if h || (result & 0xF) > 9 {result += 0x06};
+        if c || result > 0x9F      {result += 0x60};
     }
 
     reg![vm; Register::A] = result as u8;
