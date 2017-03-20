@@ -490,6 +490,9 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xE8 => mk_inst![vm> "ADDSPr8", i_addspr8(vm)],
         0xE9 => mk_inst![vm> "JPHL",    i_jphl(vm)],
         0xEA => mk_inst![vm> "LDa16mA", i_lda16ma(vm)],
+        0xEB => mk_inst![vm> "0xEB",    i_invalid(vm, 0xEB)],
+        0xEC => mk_inst![vm> "0xEC",    i_invalid(vm, 0xEC)],
+        0xED => mk_inst![vm> "0xED",    i_invalid(vm, 0xED)],
         0xEE => mk_inst![vm> "XORd8",   i_xord8(vm)],
         0xEF => mk_inst![vm> "RST28h",  i_rst(vm, 0x28)],
 
@@ -497,6 +500,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF1 => mk_inst![vm> "POPAF",   i_pop(vm, Register::A, Register::F)],
         0xF2 => mk_inst![vm> "LDACm",   i_ldacm(vm)],
         0xF3 => mk_inst![vm> "DI",      i_di(vm)],
+        0xF4 => mk_inst![vm> "0xF4",    i_invalid(vm, 0xF4)],
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xF7 => mk_inst![vm> "RST30h",  i_rst(vm, 0x30)],
@@ -504,6 +508,8 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF9 => mk_inst![vm> "LDSPHL",  i_ldsphl(vm)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
         0xFB => mk_inst![vm> "EI",      i_ei(vm)],
+        0xFC => mk_inst![vm> "0xFC",    i_invalid(vm, 0xFC)],
+        0xFD => mk_inst![vm> "0xFD",    i_invalid(vm, 0xFD)],
         0xFE => mk_inst![vm> "CPd8",    i_cpd8(vm)],
         0xFF => mk_inst![vm> "RST38h",  i_rst(vm, 0x38)],
 
@@ -2205,5 +2211,15 @@ pub fn i_daa(vm : &mut Vm) -> Clock {
         set_flag(vm, Flag::C, true);
     }
 
+    Clock { m:1, t:4 }
+}
+
+/// Invalid instruction
+///
+/// This opcode shouldn't be called.
+///
+/// The emulator just ignore it
+pub fn i_invalid(vm : &mut Vm, opcode : u8) -> Clock {
+    println!("Warning: Invalid opcode 0x{:02X}", opcode);
     Clock { m:1, t:4 }
 }
