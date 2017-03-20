@@ -253,7 +253,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x04 => mk_inst![vm> "INCB",    i_incr(vm, Register::B)],
         0x05 => mk_inst![vm> "DECB",    i_decr(vm, Register::B)],
         0x06 => mk_inst![vm> "LDBd8",   i_ldrd8(vm, Register::B)],
-        0x07 => mk_inst![vm> "RLCA",    {i_rlc(vm, Register::A); Clock {m:1, t:4}}],
+        0x07 => mk_inst![vm> "RLCA",    i_rlca(vm)],
         0x08 => mk_inst![vm> "LDa16mSP",i_lda16msp(vm)],
         0x09 => mk_inst![vm> "ADDHLBC", i_addhlr16(vm, Register::B, Register::C)],
         0x0A => mk_inst![vm> "LDABCm",  i_ldrr16m(vm, Register::A, Register::B, Register::C)],
@@ -261,7 +261,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x0C => mk_inst![vm> "INCC",    i_incr(vm, Register::C)],
         0x0D => mk_inst![vm> "DECC",    i_decr(vm, Register::C)],
         0x0E => mk_inst![vm> "LDCd8",   i_ldrd8(vm, Register::C)],
-        0x0F => mk_inst![vm> "RRCA",    {i_rrc(vm, Register::A); Clock {m:1, t:4}}],
+        0x0F => mk_inst![vm> "RRCA",    i_rrca(vm)],
 
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
         0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
@@ -1818,6 +1818,20 @@ pub fn i_rlc(vm : &mut Vm, reg : Register) -> Clock {
 
 /// Rotate Left
 ///
+/// Rotate the value in register `A` 1 bit on the left.
+/// Bit 7 goes in carry.
+///
+/// Always reset Z flag
+///
+/// Syntax : `RLCA`
+pub fn i_rlca(vm : &mut Vm) -> Clock {
+    i_rlc(vm, Register::A);
+    set_flag(vm, Flag::Z, false);
+    Clock { m:1, t:4 }
+}
+
+/// Rotate Left
+///
 /// Rotate the value in (HL) 1 bit on the left.
 /// Bit 7 goes in carry.
 ///
@@ -1854,6 +1868,20 @@ pub fn i_rrc_imp(value : u8, vm : &mut Vm) -> u8 {
 pub fn i_rrc(vm : &mut Vm, reg : Register) -> Clock {
     reg![vm ; reg] = i_rrc_imp(reg![vm ; reg], vm);
     Clock { m:2, t:8 }
+}
+
+/// Rotate Right
+///
+/// Rotate the value in register `A` 1 bit on the right.
+/// Bit 0 goes in carry.
+///
+/// Reset Z flag.
+///
+/// Syntax : `RRCA`
+pub fn i_rrca(vm : &mut Vm) -> Clock {
+    i_rrc(vm, Register::A);
+    set_flag(vm, Flag::Z, false);
+    Clock { m:1, t:4 }
 }
 
 /// Rotate Right
