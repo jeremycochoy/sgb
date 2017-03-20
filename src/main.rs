@@ -84,71 +84,41 @@ pub fn main() {
                 },
 
                 //
-                // Implement keydown for joypad's cross
+                // Implement keydown for joypad
                 //
+                Event::KeyDown { keycode: Some(keycode), ..} => {
+                    match keycode {
+                        Keycode::Z => vm::press_a(&mut vm),
+                        Keycode::X => vm::press_b(&mut vm),
+                        Keycode::A => vm::press_start(&mut vm),
+                        Keycode::S => vm::press_select(&mut vm),
 
-                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {
-                    vm::press_down(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {
-                    vm::press_up(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
-                    vm::press_left(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {
-                    vm::press_right(&mut vm);
-                }
+                        Keycode::Down => vm::press_down(&mut vm),
+                        Keycode::Up => vm::press_up(&mut vm),
+                        Keycode::Left => vm::press_left(&mut vm),
+                        Keycode::Right => vm::press_right(&mut vm),
 
-                //
-                // Implement keyup for joypad's cross
-                //
-
-                Event::KeyUp { keycode: Some(Keycode::Down), ..} => {
-                    vm::release_down(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::Up), ..} => {
-                    vm::release_up(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::Left), ..} => {
-                    vm::release_left(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::Right), ..} => {
-                    vm::release_right(&mut vm);
+                        _ => (),
+                    }
                 }
 
                 //
-                // Implement keydown for buttons
+                // Implement keyup for joypad
                 //
+                Event::KeyUp { keycode: Some(keycode), ..} => {
+                    match keycode {
+                        Keycode::Z => vm::release_a(&mut vm),
+                        Keycode::X => vm::release_b(&mut vm),
+                        Keycode::A => vm::release_start(&mut vm),
+                        Keycode::S => vm::release_select(&mut vm),
 
-                Event::KeyDown { keycode: Some(Keycode::Z), ..} => {
-                    vm::press_a(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::X), ..} => {
-                    vm::press_b(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::A), ..} => {
-                    vm::press_start(&mut vm);
-                }
-                Event::KeyDown { keycode: Some(Keycode::S), ..} => {
-                    vm::press_select(&mut vm);
-                }
+                        Keycode::Down => vm::release_down(&mut vm),
+                        Keycode::Up => vm::release_up(&mut vm),
+                        Keycode::Left => vm::release_left(&mut vm),
+                        Keycode::Right => vm::release_right(&mut vm),
 
-                //
-                // Implement keyup for buttons
-                //
-
-                Event::KeyUp { keycode: Some(Keycode::Z), ..} => {
-                    vm::release_a(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::X), ..} => {
-                    vm::release_b(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::A), ..} => {
-                    vm::release_start(&mut vm);
-                }
-                Event::KeyUp { keycode: Some(Keycode::S), ..} => {
-                    vm::release_select(&mut vm);
+                        _ =>  (),
+                    }
                 }
 
                 _ => {}

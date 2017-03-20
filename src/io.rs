@@ -39,11 +39,11 @@ pub fn dispatch_io_write(addr : usize, value :u8, vm : &mut Vm) {
 
 pub fn read_joypad(vm : &Vm) -> u8 {
     if vm.mmu.joyp & 0x30 == 0x10 {
-        println!("JOYPAD 0x10: {:02X}", vm.joypad_row_buttons | 0x10);
+//        println!("JOYPAD 0x10: {:02X}", vm.joypad_row_buttons | 0x10);
         return vm.joypad_row_buttons | 0x10;
     }
     if vm.mmu.joyp & 0x30 == 0x20 {
-        println!("JOYPAD 0x20: {:02X}", vm.joypad_row_cross | 0x20);
+//        println!("JOYPAD 0x20: {:02X}", vm.joypad_row_cross | 0x20);
         return vm.joypad_row_cross | 0x20;
     }
     if vm.mmu.joyp & 0x30 == 0x30 {
@@ -55,6 +55,6 @@ pub fn read_joypad(vm : &Vm) -> u8 {
 }
 
 pub fn write_joypad(vm : &mut Vm, value : u8) {
-    println!("Write joypad: {:02X}", value);
+//    println!("Write joypad: {:02X}", value);
     vm.mmu.joyp = (value & 0x30) | (vm.mmu.joyp & 0x0F);
 }
