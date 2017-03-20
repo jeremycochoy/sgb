@@ -172,7 +172,6 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
 pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u16) -> Vec<u8> {
-
     // TODO : Select right tileset
     // Each tile contain 8 line. Each line is stored in 2 bytes.
     // Therefor each tile contain 8*2 bytes.

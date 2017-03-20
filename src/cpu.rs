@@ -650,6 +650,74 @@ pub fn dispatch_cb(opcode : u8) -> Instruction {
         0x7E => mk_inst![vm> "BIT7HLm",  i_bithlm(vm, 7)],
         0x7F => mk_inst![vm> "BIT7A",    i_bitr(vm, 7, Register::A)],
 
+        0x80 => mk_inst![vm> "RES0B",    i_res(vm, 0, Register::B)],
+        0x81 => mk_inst![vm> "RES0C",    i_res(vm, 0, Register::C)],
+        0x82 => mk_inst![vm> "RES0D",    i_res(vm, 0, Register::D)],
+        0x83 => mk_inst![vm> "RES0E",    i_res(vm, 0, Register::E)],
+        0x84 => mk_inst![vm> "RES0H",    i_res(vm, 0, Register::H)],
+        0x85 => mk_inst![vm> "RES0L",    i_res(vm, 0, Register::L)],
+        0x86 => mk_inst![vm> "RES0HLm",  i_reshlm(vm, 0)],
+        0x87 => mk_inst![vm> "RES0A",    i_res(vm, 0, Register::A)],
+        0x88 => mk_inst![vm> "RES0B",    i_res(vm, 1, Register::B)],
+        0x89 => mk_inst![vm> "RES0C",    i_res(vm, 1, Register::C)],
+        0x8A => mk_inst![vm> "RES0D",    i_res(vm, 1, Register::D)],
+        0x8B => mk_inst![vm> "RES0E",    i_res(vm, 1, Register::E)],
+        0x8C => mk_inst![vm> "RES0H",    i_res(vm, 1, Register::H)],
+        0x8D => mk_inst![vm> "RES0L",    i_res(vm, 1, Register::L)],
+        0x8E => mk_inst![vm> "RES0HLm",  i_reshlm(vm, 1)],
+        0x8F => mk_inst![vm> "RES0A",    i_res(vm, 1, Register::A)],
+
+        0x90 => mk_inst![vm> "RES2B",    i_res(vm, 2, Register::B)],
+        0x91 => mk_inst![vm> "RES2C",    i_res(vm, 2, Register::C)],
+        0x92 => mk_inst![vm> "RES2D",    i_res(vm, 2, Register::D)],
+        0x93 => mk_inst![vm> "RES2E",    i_res(vm, 2, Register::E)],
+        0x94 => mk_inst![vm> "RES2H",    i_res(vm, 2, Register::H)],
+        0x95 => mk_inst![vm> "RES2L",    i_res(vm, 2, Register::L)],
+        0x96 => mk_inst![vm> "RES2HLm",  i_reshlm(vm, 2)],
+        0x97 => mk_inst![vm> "RES2A",    i_res(vm, 2, Register::A)],
+        0x98 => mk_inst![vm> "RES3B",    i_res(vm, 3, Register::B)],
+        0x99 => mk_inst![vm> "RES3C",    i_res(vm, 3, Register::C)],
+        0x9A => mk_inst![vm> "RES3D",    i_res(vm, 3, Register::D)],
+        0x9B => mk_inst![vm> "RES3E",    i_res(vm, 3, Register::E)],
+        0x9C => mk_inst![vm> "RES3H",    i_res(vm, 3, Register::H)],
+        0x9D => mk_inst![vm> "RES3L",    i_res(vm, 3, Register::L)],
+        0x9E => mk_inst![vm> "RES3HLm",  i_reshlm(vm, 3)],
+        0x9F => mk_inst![vm> "RES3A",    i_res(vm, 3, Register::A)],
+
+        0xA0 => mk_inst![vm> "RES4B",    i_res(vm, 4, Register::B)],
+        0xA1 => mk_inst![vm> "RES4C",    i_res(vm, 4, Register::C)],
+        0xA2 => mk_inst![vm> "RES4D",    i_res(vm, 4, Register::D)],
+        0xA3 => mk_inst![vm> "RES4E",    i_res(vm, 4, Register::E)],
+        0xA4 => mk_inst![vm> "RES4H",    i_res(vm, 4, Register::H)],
+        0xA5 => mk_inst![vm> "RES4L",    i_res(vm, 4, Register::L)],
+        0xA6 => mk_inst![vm> "RES4HLm",  i_reshlm(vm, 4)],
+        0xA7 => mk_inst![vm> "RES4A",    i_res(vm, 4, Register::A)],
+        0xA8 => mk_inst![vm> "RES5B",    i_res(vm, 5, Register::B)],
+        0xA9 => mk_inst![vm> "RES5C",    i_res(vm, 5, Register::C)],
+        0xAA => mk_inst![vm> "RES5D",    i_res(vm, 5, Register::D)],
+        0xAB => mk_inst![vm> "RES5E",    i_res(vm, 5, Register::E)],
+        0xAC => mk_inst![vm> "RES5H",    i_res(vm, 5, Register::H)],
+        0xAD => mk_inst![vm> "RES5L",    i_res(vm, 5, Register::L)],
+        0xAE => mk_inst![vm> "RES5HLm",  i_reshlm(vm, 5)],
+        0xAF => mk_inst![vm> "RES5A",    i_res(vm, 5, Register::A)],
+
+        0xB0 => mk_inst![vm> "RES6B",    i_res(vm, 6, Register::B)],
+        0xB1 => mk_inst![vm> "RES6C",    i_res(vm, 6, Register::C)],
+        0xB2 => mk_inst![vm> "RES6D",    i_res(vm, 6, Register::D)],
+        0xB3 => mk_inst![vm> "RES6E",    i_res(vm, 6, Register::E)],
+        0xB4 => mk_inst![vm> "RES6H",    i_res(vm, 6, Register::H)],
+        0xB5 => mk_inst![vm> "RES6L",    i_res(vm, 6, Register::L)],
+        0xB6 => mk_inst![vm> "RES6HLm",  i_reshlm(vm, 6)],
+        0xB7 => mk_inst![vm> "RES6A",    i_res(vm, 6, Register::A)],
+        0xB8 => mk_inst![vm> "RES7B",    i_res(vm, 7, Register::B)],
+        0xB9 => mk_inst![vm> "RES7C",    i_res(vm, 7, Register::C)],
+        0xBA => mk_inst![vm> "RES7D",    i_res(vm, 7, Register::D)],
+        0xBB => mk_inst![vm> "RES7E",    i_res(vm, 7, Register::E)],
+        0xBC => mk_inst![vm> "RES7H",    i_res(vm, 7, Register::H)],
+        0xBD => mk_inst![vm> "RES7L",    i_res(vm, 7, Register::L)],
+        0xBE => mk_inst![vm> "RES7HLm",  i_reshlm(vm, 7)],
+        0xBF => mk_inst![vm> "RES7A",    i_res(vm, 7, Register::A)],
+
         _ => panic!(format!("CB Prefix : missing instruction 0xCB:0x{:02X} !", opcode)),
     }
 }
@@ -1992,4 +2060,41 @@ pub fn i_scf(vm : &mut Vm) -> Clock {
     set_flag(vm, Flag::H, false);
     set_flag(vm, Flag::C, true);
     Clock { m:1, t:4 }
+}
+
+/// Set the bit `bit` of the register `reg`
+///
+/// Syntax : `SET bit reg`
+pub fn i_set(vm : &mut Vm, bit : u8, reg : Register) -> Clock {
+    reg![vm ; reg] = reg![vm ; reg] | (1 << bit);
+    Clock { m:2, t:8 }
+}
+
+/// Set the bit `bit` of (HL)
+///
+/// Syntax : `SET bit`
+pub fn i_sethlm(vm : &mut Vm, bit : u8) -> Clock {
+    let value = mmu::rb(hl![vm], vm);
+    let result = value | (1 << bit);
+    mmu::wb(hl![vm], result, vm);
+    Clock { m:2, t:16 }
+}
+
+
+/// Reset the bit `bit` of the register `reg`
+///
+/// Syntax : `RES bit reg`
+pub fn i_res(vm : &mut Vm, bit : u8, reg : Register) -> Clock {
+    reg![vm ; reg] = reg![vm ; reg] & !(1 << bit);
+    Clock { m:2, t:8 }
+}
+
+/// Reset the bit `bit` of (HL)
+///
+/// Syntax : `RES bit`
+pub fn i_reshlm(vm : &mut Vm, bit : u8) -> Clock {
+    let value = mmu::rb(hl![vm], vm);
+    let result = value & !(1 << bit);
+    mmu::wb(hl![vm], result, vm);
+    Clock { m:2, t:16 }
 }
