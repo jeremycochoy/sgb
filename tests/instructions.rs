@@ -136,6 +136,9 @@ fn dec() {
 
     i_decr(&mut vm, Register::A);
     assert!(reg![vm ; Register::A] == 0xFF);
+    assert!(flag![vm ; Flag::Z] == false);
+    assert!(flag![vm ; Flag::N] == true);
+    assert!(flag![vm ; Flag::H] == true);
 }
 
 #[test]
@@ -395,4 +398,32 @@ fn pop_af() {
 
     assert!(reg![vm ; Register::A] == 0x13);
     assert!(reg![vm ; Register::F] == 0xF0);
+}
+
+
+#[test]
+fn rrc() {
+    let mut vm : Vm = Default::default();
+
+    reg![vm ; Register::A] = 0b10;
+    set_flag(&mut vm, Flag::C, true);
+
+    i_rrc(&mut vm, Register::A);
+    assert!(reg![vm ; Register::A] == 0b01);
+    assert!(flag![vm ; Flag::C] == false);
+
+    reg![vm ; Register::B] = 0b00000001;
+    i_rrc(&mut vm, Register::B);
+    assert!(reg![vm ; Register::B] == 0b10000000);
+    assert!(flag![vm ; Flag::C] == true);
+
+    reg![vm ; Register::C] = 0b00010101;
+    i_rrc(&mut vm, Register::C);
+    assert!(reg![vm ; Register::C] == 0b10001010);
+    assert!(flag![vm ; Flag::C] == true);
+
+    reg![vm ; Register::D] = 0b11110000;
+    i_rrc(&mut vm, Register::D);
+    assert!(reg![vm ; Register::D] == 0b01111000);
+    assert!(flag![vm ; Flag::C] == false);
 }

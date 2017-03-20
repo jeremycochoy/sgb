@@ -955,7 +955,7 @@ pub fn i_andd8(vm : &mut Vm) -> Clock {
 /// Implementation of the increment instruction (setting flags)
 pub fn i_inc_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
     set_flag(vm, Flag::Z, final_val == 0);
-    set_flag(vm, Flag::H, (initial_val & 0x0F + 1 > 0x0F));
+    set_flag(vm, Flag::H, (initial_val & 0x0F) + 1 > 0x0F);
     set_flag(vm, Flag::N, false);
 }
 
@@ -1008,8 +1008,7 @@ pub fn i_incsp(vm : &mut Vm) -> Clock {
 /// Implementation of the increment instruction (setting flags)
 pub fn i_dec_impl(vm : &mut Vm, initial_val : u8, final_val : u8) {
     set_flag(vm, Flag::Z, final_val == 0);
-    // intial_val - 1 == initial_val + 0xFF
-    set_flag(vm, Flag::H, (initial_val & 0x0F + 0x0F > 0x0F));
+    set_flag(vm, Flag::H, initial_val & 0x0F == 0);
     set_flag(vm, Flag::N, true);
 }
 
@@ -1794,8 +1793,14 @@ pub fn i_rlc_imp(value : u8, vm : &mut Vm) -> u8 {
     let result = (value << 1) | (value >> 7);
 
     reset_flags(vm);
-    set_flag(vm, Flag::C, (value & 0x80) != 0); // Take value's bit 7
+    // println!("rlca {:08b} {:08b}", value, result);
+    set_flag(vm, Flag::C, (value >> 7) != 0);
     set_flag(vm, Flag::Z, result == 0);
+    // println!("Z:{}, N:{}, H:{}, C:{}",
+    //          flag![vm ; Flag::Z],
+    //          flag![vm ; Flag::N],
+    //          flag![vm ; Flag::H],
+    //          flag![vm ; Flag::C]);
 
     return result;
 }
@@ -1847,7 +1852,7 @@ pub fn i_rrc_imp(value : u8, vm : &mut Vm) -> u8 {
 ///
 /// Syntax : `RRC reg:Register`
 pub fn i_rrc(vm : &mut Vm, reg : Register) -> Clock {
-    reg![vm ; reg] = i_rl_imp(reg![vm ; reg], vm);
+    reg![vm ; reg] = i_rrc_imp(reg![vm ; reg], vm);
     Clock { m:2, t:8 }
 }
 
@@ -1860,7 +1865,7 @@ pub fn i_rrc(vm : &mut Vm, reg : Register) -> Clock {
 pub fn i_rrchlm(vm : &mut Vm) -> Clock {
     // Read value
     let value = mmu::rb(hl![vm], vm);
-    let result = i_rl_imp(value, vm);
+    let result = i_rrc_imp(value, vm);
     // Write value
     mmu::wb(hl![vm], result, vm);
 
