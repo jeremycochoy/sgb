@@ -48,6 +48,9 @@ pub struct Mmu {
     /// Once the booting sequence is finished, the value is
     /// turned to false. Then, rading below 0x100 read bytes from the rom field.
     pub bios_enabled : bool,
+
+    /// JOYPAD register (P1)
+    pub joyp  : u8,
 }
 
 impl Default for Mmu {
@@ -80,6 +83,8 @@ impl Default for Mmu {
         hram  : empty_memory(0xFF80..0xFFFF),
         ier   : 0x00,
         bios_enabled : true,
+
+        joyp  : 0x00,
     }
     }
 }
@@ -117,6 +122,7 @@ pub fn rw(addr : u16, vm : &Vm) -> u16 {
     let h = rb(addr + 1, vm);
     w_combine(h, l)
 }
+
 static mut debug :u8 = 0;
 /// Write a byte to the MMU at address addr (TODO)
 pub fn wb(addr : u16, value : u8, vm : &mut Vm) {

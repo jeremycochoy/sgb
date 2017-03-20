@@ -164,5 +164,8 @@ pub fn load_rom(filename : String) -> Result<Vm> {
         mmu : mmu,
         gpu : Default::default(),
         cartridge : cartridge,
+
+        joypad_row_cross : 0x0F,
+        joypad_row_buttons : 0x0F,
     })
 }
