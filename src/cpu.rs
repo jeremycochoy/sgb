@@ -500,6 +500,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0xF5 => mk_inst![vm> "PUSHAF",  i_push(vm, Register::A, Register::F)],
         0xF6 => mk_inst![vm> "ORd8",    i_ord8(vm)],
         0xF7 => mk_inst![vm> "RST30h",  i_rst(vm, 0x30)],
+        0xF8 => mk_inst![vm> "LDHLSPr8",  i_ldhlspr8(vm)],
         0xF9 => mk_inst![vm> "LDSPHL",  i_ldsphl(vm)],
         0xFA => mk_inst![vm> "LDAa16m", i_ldaa16m(vm)],
         0xFB => mk_inst![vm> "EI",      i_ei(vm)],
@@ -1288,15 +1289,34 @@ pub fn i_addhlsp(vm : &mut Vm) -> Clock {
 ///
 /// Affect all flags.
 pub fn i_addspr8(vm : &mut Vm) -> Clock {
-    let a = sp![vm];
-    let b = read_program_byte(vm) as u16;
+    let a = sp![vm] as u16;
+    let b = (read_program_byte(vm) as i8) as u16;
+
+    let sum = a.wrapping_add(b as u16);
 
     reset_flags(vm);
-    let sum = i_add_imp16(vm, a, b);
+    set_flag(vm, Flag::H, (0x0F & a) + (0x0F & b) > 0x0F);
+    set_flag(vm, Flag::C, (a & 0xFF) + (b & 0xFF) > 0xFF);
     sp![vm] = sum;
 
     Clock { m:1, t:8 }
 }
+
+/// Load in HL the value of SP plus direct Word8
+pub fn i_ldhlspr8(vm : &mut Vm) -> Clock {
+    let a = sp![vm];
+    let b = (read_program_byte(vm) as i8) as u16;
+
+    let sum = a.wrapping_add(b as u16);
+
+    reset_flags(vm);
+    set_flag(vm, Flag::H, (0x0F & a) + (0x0F & b) > 0x0F);
+    set_flag(vm, Flag::C, (a & 0xFF) + (b & 0xFF) > 0xFF);
+    set_hl!(vm, sum);
+
+    Clock { m:2, t: 12 }
+}
+
 
 /// Implement adding value:u8 + carry to the register A and set the flags
 pub fn i_adc_imp(vm : &mut Vm, value : u8) -> u8 {
