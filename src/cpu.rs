@@ -269,7 +269,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x14 => mk_inst![vm> "INCD",    i_incr(vm, Register::D)],
         0x15 => mk_inst![vm> "DECD",    i_decr(vm, Register::D)],
         0x16 => mk_inst![vm> "LDDd8",   i_ldrd8(vm, Register::D)],
-        0x17 => mk_inst![vm> "RLA",     {i_rl(vm, Register::A) ; Clock {m:1, t:4}}],
+        0x17 => mk_inst![vm> "RLA",     i_rla(vm)],
         0x18 => mk_inst![vm> "JR",      i_jr(vm)],
         0x19 => mk_inst![vm> "ADDHLDE", i_addhlr16(vm, Register::D, Register::E)],
         0x1A => mk_inst![vm> "LDADEm",  i_ldrr16m(vm, Register::A, Register::D, Register::E)],
@@ -277,7 +277,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x1C => mk_inst![vm> "INCE",    i_incr(vm, Register::E)],
         0x1D => mk_inst![vm> "DECE",    i_decr(vm, Register::E)],
         0x1E => mk_inst![vm> "LDEd8",   i_ldrd8(vm, Register::E)],
-        0x1F => mk_inst![vm> "RRA",     {i_rr(vm, Register::A) ; Clock {m:1, t:4}}],
+        0x1F => mk_inst![vm> "RRA",     i_rra(vm)],
 
         0x20 => mk_inst![vm> "JRnfZ",   i_jrnf(vm, Flag::Z)],
         0x21 => mk_inst![vm> "LDHLd16", i_ldr16d16(vm, Register::H, Register::L)],
@@ -1621,6 +1621,18 @@ pub fn i_rl(vm : &mut Vm, reg : Register) -> Clock {
 
 /// Rotate Left through carry
 ///
+/// Rotate the value in register `A` 1 bit left.
+/// Bit 7 goes in carry, and carry goes at reg's 0 bit.
+///
+/// Syntax : `RLA`
+pub fn i_rla(vm : &mut Vm) -> Clock {
+    i_rl(vm, Register::A);
+    set_flag(vm, Flag::Z, false);
+    Clock { m:2, t:8 }
+}
+
+/// Rotate Left through carry
+///
 /// Rotate the value in (HL) 1 bit left.
 /// Bit 7 goes in carry, and carry goes at (HL)'s 0 bit.
 ///
@@ -1657,6 +1669,22 @@ pub fn i_rr(vm : &mut Vm, reg : Register) -> Clock {
     reg![vm ; reg] = i_rr_imp(reg![vm ; reg], vm);
     Clock { m:2, t:8 }
 }
+
+
+/// Rotate Right through carry
+///
+/// Rotate the value in register reg 1 bit right.
+/// Bit 0 goes in carry, and carry goes at reg's 7 bit.
+///
+/// Reset Z flag.
+///
+/// Syntax : `RR reg:Register`
+pub fn i_rra(vm : &mut Vm) -> Clock {
+    i_rr(vm, Register::A);
+    set_flag(vm, Flag::Z, false);
+    Clock { m:1, t:4 }
+}
+
 
 /// Rotate Right through carry
 ///
