@@ -286,7 +286,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x24 => mk_inst![vm> "INCH",    i_incr(vm, Register::H)],
         0x25 => mk_inst![vm> "DECH",    i_decr(vm, Register::H)],
         0x26 => mk_inst![vm> "LDHd8",   i_ldrd8(vm, Register::H)],
-        // 0x27 =>
+        0x27 => mk_inst![vm> "DAA",     i_daa(vm)],
         0x28 => mk_inst![vm> "JRfZ",    i_jrf(vm, Flag::Z)],
         0x29 => mk_inst![vm> "ADDHLHL", i_addhlr16(vm, Register::H, Register::L)],
         0x2A => mk_inst![vm> "LDIAHLm", i_ldiahlm(vm)],
@@ -2165,4 +2165,45 @@ pub fn i_reshlm(vm : &mut Vm, bit : u8) -> Clock {
     let result = value & !(1 << bit);
     mmu::wb(hl![vm], result, vm);
     Clock { m:2, t:16 }
+}
+
+/// Decimal Adjust Accumulator
+///
+/// This instruction adjust the accumulator
+/// after an addition or substraction in the
+/// case the numbers was represented in
+/// packed BCD (Binary-coded decimal).
+///
+/// See http://www.z80.info/z80syntx.htm#DAA
+/// and http://forums.nesdev.com/viewtopic.php?t=9088
+///
+/// Syntax : `DAA`
+pub fn i_daa(vm : &mut Vm) -> Clock {
+    let c = flag![vm ; Flag::C];
+    let h = flag![vm ; Flag::H];
+
+    let mut result = reg![vm ; Register::A] as u16;
+
+    // In case of a substraction
+    if flag![vm ; Flag::Z] {
+        if h {result = (result - 0x06) & 0xFF};
+        if c {result -= 0x60};
+    }
+    // In case of an addition
+    else {
+        if h {result = (result + 0x06) & 0xFF};
+        if c {result += 0x60};
+    }
+
+    reg![vm; Register::A] = result as u8;
+
+    set_flag(vm, Flag::Z, result == 0);
+    set_flag(vm, Flag::H, false);
+
+    // Carry is unchanged unless there is a carry
+    if result & 0x100 != 0 {
+        set_flag(vm, Flag::C, true);
+    }
+
+    Clock { m:1, t:4 }
 }
