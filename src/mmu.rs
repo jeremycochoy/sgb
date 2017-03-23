@@ -137,7 +137,11 @@ pub fn wb(addr : u16, value : u8, vm : &mut Vm) {
         0xD000...0xDFFF => vm.mmu.swram[addr - 0xD000] = value,
         0xE000...0xEFFF => vm.mmu.wram[addr - 0xE000] = value,
         0xF000...0xFDFF => vm.mmu.swram[addr - 0xF000] = value,
-        0xFE00...0xFE9F => vm.mmu.oam[addr - 0xFE00] = value,
+        0xFE00...0xFE9F => {
+            let index = addr - 0xFE00;
+            vm.mmu.oam[index] = value;
+            update_sprite(index, value, vm);
+        },
         0xFF80...0xFFFE => vm.mmu.hram[addr - 0xFF80] = value,
         0xFFFF => vm.mmu.ier = value,
         // Otherwise, it should be an IO
@@ -158,4 +162,22 @@ pub fn ww(addr : u16, value : u16, vm : &mut Vm) {
     let (h, l) = w_uncombine(value);
     wb(addr, l, vm);
     wb(addr + 1, h, vm);
+}
+
+/// Update the duplicated representation of a sprite
+/// in GPU, used for sprite rendering.
+pub fn update_sprite(index : usize, value : u8, vm : &mut Vm) {
+    match index & 0x03 {
+        0 => (*vm.gpu.sprites)[index].y = value,
+        1 => (*vm.gpu.sprites)[index].x = value,
+        2 => (*vm.gpu.sprites)[index].tile_idx = value,
+        3 => {
+            (*vm.gpu.sprites)[index].priority = (value & 0x80) != 0;
+            (*vm.gpu.sprites)[index].y_flip   = (value & 0x40) != 0;
+            (*vm.gpu.sprites)[index].x_flip   = (value & 0x20) != 0;
+            (*vm.gpu.sprites)[index].palette  = (value & 0x10) != 0;
+        },
+        // Impossible because of & 0x03:
+        _ => return,
+    }
 }

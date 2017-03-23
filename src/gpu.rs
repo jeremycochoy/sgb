@@ -23,6 +23,11 @@ pub struct Gpu {
     pub lcdc            : LCDC,
     /// Memory used for rendering the current screen
     pub rendering_memory        : Vec<u8>,
+    /// Sprite stored in OAM
+    /// (duplicate the values in OAM
+    /// with easy access for rendering)
+    /// The length of sprites is exatly 40.
+    pub sprites         : Box<[Sprite]>,
 }
 
 impl Default for Gpu {
@@ -36,6 +41,7 @@ impl Default for Gpu {
             bg_palette  : 0, // TODO
             lcdc        : u8_to_lcdc(0x91),
             rendering_memory    : white_memory(0..144*160*3),
+            sprites     : Box::new([Default::default(); 40]),
         }
     }
 }
@@ -129,6 +135,32 @@ pub fn u8_to_lcdc(value : u8) -> LCDC {
     }
 }
 
+#[derive(Eq, PartialEq, Clone, Copy, Default, Debug)]
+pub struct Sprite {
+    /// Y-coordinate of top-left corner of the sprite
+    /// (Value stored is Y minus 16)
+    pub y               : u8,
+    /// X-coordinate of top-left corner of the sprite
+    /// (Value stored is X minus 8)
+    pub x               : u8,
+    /// Index of the tile in the current tileset
+    pub tile_idx        : u8,
+    /// Display above background (0) or below (1)
+    /// The colour 0 (befor application of the bg_palette)
+    /// of the background is replaced by the sprite's pixel.
+    pub priority        : bool,
+    /// Horizontal flip of the sprite (0:normal, 1:flipped)
+    pub y_flip          : bool,
+    /// Vertical flip of the sprite (0:normal, 1:flipped)
+    pub x_flip          : bool,
+    /// Palette selector (palette #0 or palette #1)
+    pub palette         : bool,
+}
+
+/// Update the state of the GPU (HorizontalBlank,
+/// VerticalBlank, ScanlineOAM, ScanlineVRAM)
+/// and call the rendering function render_scanline
+/// at the end of each scanline.
 pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
     // Update the clock
     vm.gpu.clock = vm.gpu.clock.wrapping_add(cycles);
@@ -241,7 +273,7 @@ pub fn render_scanline(vm : &mut Vm) {
     let bg_palette = vm.gpu.bg_palette;
     let pixels_line = tile_line
         .map(|idx| get_tile_pixels_line(lcdc, vram, *idx, y % 8)) //[tile_index] -> [line of pixels]
-        .map(|tile| tile.into_iter().map(|px| bgpalette_to_u8(bg_palette, px))) // [[Pixel]] -> [[Pixel]]
+        .map(|tile| tile.into_iter().map(|px| compute_u8_from_palette(bg_palette, px))) // [[Pixel]] -> [[Pixel]]
         .map(|tile| tile.into_iter().map(u8_to_color)) // [[Pixel]] -> [[GreyScale]]
         .map(|pixels| pixels.map(color_to_rgb)); // [[GreyScale]] -> [(r, g, b)]
 
@@ -263,7 +295,7 @@ pub fn render_scanline(vm : &mut Vm) {
 
 /// Take a tile's pixel `value` (value in [|0, 3|]) and give a color
 /// value (value in [|0, 3|]) using `pallette`.
-pub fn bgpalette_to_u8(palette : u8, value : u8) -> u8 {
+pub fn compute_u8_from_palette(palette : u8, value : u8) -> u8 {
     match value {
         0 => 0x03 & (palette >> 0),
         1 => 0x03 & (palette >> 2),
