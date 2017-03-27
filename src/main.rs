@@ -58,13 +58,14 @@ pub fn main_perf() {
     }
 
     //DEBUG
-    while(vm.cpu.clock.t <= 4190000 * 10) {
+    while(vm.cpu.clock.t <= 4190000 * 30) {
         execute_one_instruction(&mut vm);
     }
-
 }
 
-pub fn main() {
+pub fn main() { main_perf(); }
+
+pub fn main_shell() {
     // Initialise SDL2
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();

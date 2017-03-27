@@ -265,31 +265,38 @@ pub fn render_scanline(vm : &mut Vm) {
     // Compute the line of tiles
     let map_x = x / 8;
     let map_y = y / 8;
-    let tile_line = load_tile_map_line(&vm.gpu, &vm.mmu.vram, map_x, map_y).into_iter();
+    let tile_line = load_tile_map_line(&vm.gpu, &vm.mmu.vram, map_x, map_y);
 
-    // Compute a line of pixels
+    // Compute the background's line of pixels
+    let mut pixel_list : Vec<u8> = Vec::with_capacity(SCREEN_WIDTH + 2);
     let vram = &vm.mmu.vram;
     let lcdc = vm.gpu.lcdc;
     let bg_palette = vm.gpu.bg_palette;
-    let pixels_line = tile_line
-        .map(|idx| get_tile_pixels_line(lcdc, vram, *idx, y % 8)) //[tile_index] -> [line of pixels]
-        .map(|tile| tile.into_iter().map(|px| compute_u8_from_palette(bg_palette, px))) // [[Pixel]] -> [[Pixel]]
-        .map(|tile| tile.into_iter().map(u8_to_color)) // [[Pixel]] -> [[GreyScale]]
-        .map(|pixels| pixels.map(color_to_rgb)); // [[GreyScale]] -> [(r, g, b)]
+    for tile_index in tile_line {
+        let list_of_pixels = get_tile_pixels_line(lcdc, vram, *tile_index, y % 8);
+        for pixel in list_of_pixels {
+            // Store the pixel
+            pixel_list.push(pixel);
+        }
+    }
 
     // Update the memory with the line of pixels
     let out_addr = (vm.gpu.line as isize) * 160 * 3;
     let mut out_idx = -((x as isize) % 8);
-    for tile in pixels_line {
-        for (r, g, b) in tile {
-            let addr = (out_addr + out_idx * 3) as usize;
-            if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) {
-                vm.gpu.rendering_memory[addr] = r;
-                vm.gpu.rendering_memory[addr + 1] = g;
-                vm.gpu.rendering_memory[addr + 2] = b;
-            }
-            out_idx += 1;
+    for pixel in pixel_list {
+        // Compute the color of the pixel using the background palette
+        let colored_pixel = compute_u8_from_palette(bg_palette, pixel);
+        let color = u8_to_color(colored_pixel);
+        let (r, g, b) = color_to_rgb(color);
+
+        // Store the color into the rendering memory
+        let addr = (out_addr + out_idx * 3) as usize;
+        if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) {
+            vm.gpu.rendering_memory[addr] = r;
+            vm.gpu.rendering_memory[addr + 1] = g;
+            vm.gpu.rendering_memory[addr + 2] = b;
         }
+        out_idx += 1;
     }
 }
 
