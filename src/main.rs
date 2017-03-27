@@ -28,6 +28,42 @@ pub fn render_screen(vm : &mut Vm, renderer : &mut Renderer, texture : &mut Text
     renderer.present();
 }
 
+// Main function used for profiling
+pub fn main_perf() {
+    // Reag arguments (file and remove boot)
+    let mut file_name = "".to_string();
+    let mut no_boot_rom = false;
+    for arg in env::args().skip(1) {
+        if arg == "--no-boot" || arg == "--no-boot-rom" {
+            no_boot_rom = true;
+            println!("Boot rom removed");
+        }
+        else {
+            file_name = arg;
+        }
+    }
+    if file_name == "" {
+        println!("usage : sgb file_name.gb");
+        return;
+    } else {
+        println!("Loading: {}", file_name);
+    }
+
+    // Load the VM
+    let mut vm = load_rom(file_name).unwrap();
+    // Disable bios if asked
+    if no_boot_rom {
+        vm.cpu.registers.pc = 0x100;
+        vm.mmu.bios_enabled = false;
+    }
+
+    //DEBUG
+    while(vm.cpu.clock.t <= 4190000 * 10) {
+        execute_one_instruction(&mut vm);
+    }
+
+}
+
 pub fn main() {
     // Initialise SDL2
     let sdl_context = sdl2::init().unwrap();

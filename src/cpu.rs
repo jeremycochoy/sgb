@@ -149,9 +149,9 @@ pub fn set_r16(vm : &mut Vm, h : Register, l : Register, value : u16) {
 /// Represent a 'time' enlapsed
 pub struct Clock {
     /// Length in byte of the last instruction
-    m : u64,
+    pub m : u64,
     /// Duration in cycles
-    t : u64,
+    pub t : u64,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
