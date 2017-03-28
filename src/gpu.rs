@@ -301,14 +301,12 @@ pub fn render_background_line(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
     // and update the rendering memory
     let mut bg_pixel_list : Vec<u8> = Vec::with_capacity(SCREEN_WIDTH + 2);
     let mut out_idx = -((x as isize) % 8);
-    let mut map_x = x / 8;
-    for tile_index in tile_line {
-        // Skip the first non-displayed tiles
-        if map_x > 0 {
-            map_x -= 1;
-            continue;
-        }
-        for pixel in get_tile_pixels_line(lcdc, vram, *tile_index, y % 8) {
+    let map_x = (x as usize) / 8;
+    // For each tile that might cross the screen
+    for tile_number in map_x..(map_x + SCREEN_WIDTH / 8 + 2) {
+
+        // For each pixel in the tile (use % 32 for horiwontal wrapping)
+        for pixel in get_tile_pixels_line(lcdc, vram, tile_line[tile_number % 32], y % 8) {
             // If the pixel is outside of the screen, skip it
             if out_idx < 0 || out_idx >= (SCREEN_WIDTH as isize) {
                 out_idx += 1;
