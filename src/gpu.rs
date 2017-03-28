@@ -224,7 +224,6 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
 pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u16) -> Vec<u8> {
-    // TODO : Select right tileset
     // Each tile contain 8 line. Each line is stored in 2 bytes.
     // Therefor each tile contain 8*2 bytes.
     let addr = if lcdc.tile_set {
@@ -280,7 +279,7 @@ pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, y : u16) -> &'a [u
 ///
 /// First argument is the address where begin the line of pixel
 /// of the rendering buffer.
-pub fn render_background_line(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
+pub fn render_background(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
     // Compute the coordinates of the upper left corner of the line
     let x = vm.gpu.scx as u16;
     let y = (vm.gpu.scy as u16) + (vm.gpu.line as u16);
@@ -335,33 +334,20 @@ pub fn render_background_line(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
     return bg_pixel_list;
 }
 
-/// Render the current line of pixel on the rendering_memory
-pub fn render_scanline(vm : &mut Vm) {
-    // Compute the adresse of the current line of pixels to render
-    let out_addr = (vm.gpu.line as isize) * (SCREEN_WIDTH as isize) * 3;
-
-    //
-    // BACKGROUND RENDERING
-    //
-
-    // Return a list of pixels in the current background line
-    let background_pixels = if (vm.gpu.lcdc.background_display) {
-        render_background_line(out_addr, vm)
-    } else {
-        vec![0 ; SCREEN_WIDTH] // Return trensparency if nothing was draw
-    };
-
-    //
-    // SPRITES RENDERING
-    //
-
+/// Render sprites above/bellow the background
+///
+/// The first argument is the adress of the begining
+/// of the current line in the rendering buffer.
+/// The second argument is the line of pixels from the background
+/// that is displayed. 0 means transparency.
+pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm) {
     let lcdc = vm.gpu.lcdc;
     let vram = &vm.mmu.vram;
 
-    // TODO use lcdc sprite_display
-    // For each sprite of the table
     // TODO : Sort sprites by X and low addr !
-    //        Then keep only the first 10.
+    //        Then keep only the first 10. Cf : GB documentation on sprites.
+
+    // For each sprite of the table
     for i in 0..40 {
         let sprite = vm.gpu.sprites[i];
         let line = vm.gpu.line as isize;
@@ -402,6 +388,33 @@ pub fn render_scanline(vm : &mut Vm) {
             vm.gpu.rendering_memory[addr + 1] = g;
             vm.gpu.rendering_memory[addr + 2] = b;
         }
+    }
+}
+
+/// Render the current line of pixel on the rendering_memory
+pub fn render_scanline(vm : &mut Vm) {
+    // Compute the adresse of the current line of pixels to render
+    let out_addr = (vm.gpu.line as isize) * (SCREEN_WIDTH as isize) * 3;
+    let lcdc = vm.gpu.lcdc;
+
+    //
+    // BACKGROUND RENDERING
+    //
+
+    // Return a list of pixels in the current background line
+    let background_pixels = if (lcdc.background_display) {
+        render_background(out_addr, vm)
+    } else {
+        vec![0 ; SCREEN_WIDTH] // Return trensparency if nothing was draw
+    };
+
+    //
+    // SPRITES RENDERING
+    //
+
+    // Check the lcdc flag. If inactivated, skip the rendering.
+    if lcdc.sprite_display {
+        render_sprite(out_addr, background_pixels, vm);
     }
 }
 
