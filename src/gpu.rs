@@ -95,11 +95,11 @@ pub struct LCDC {
     ///   0: off
     ///   1: on
     window              : bool,
-    /// Bit 4 - BG & Window Tile Data Select
+    /// Bit 4 - BG & Window tileset selected
     ///   0: $8800-$97FF
     ///   1: $8000-$8FFF <- Same area as OBJ
     tile_set            : bool,
-    /// Bit 3 - BG Tile Map Display Select
+    /// Bit 3 - BG tilemap selected
     ///   0: $9800-$9BFF
     ///   1: $9C00-$9FFF
     bg_tile_map         : bool,
@@ -114,11 +114,11 @@ pub struct LCDC {
     /// Bit 0 - BG & Window Display
     ///   0: off
     ///   1: on
-    window_display  : bool,
+    background_display  : bool,
 }
 
 pub fn lcdc_to_u8(lcdc : LCDC) -> u8 {
-    (lcdc.window_display as u8)
+    (lcdc.background_display as u8)
         | (lcdc.sprite_display as u8) << 1
         | (lcdc.sprite_size as u8) << 2
         | (lcdc.bg_tile_map as u8) << 3
@@ -130,7 +130,7 @@ pub fn lcdc_to_u8(lcdc : LCDC) -> u8 {
 
 pub fn u8_to_lcdc(value : u8) -> LCDC {
     LCDC {
-        window_display  : (0b00000001 & value) != 0,
+        background_display  : (0b00000001 & value) != 0,
         sprite_display  : (0b00000010 & value) != 0,
         sprite_size     : (0b00000100 & value) != 0,
         bg_tile_map     : (0b00001000 & value) != 0,
@@ -234,7 +234,7 @@ pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_id
     } else {
         let tile_idx = (tile_idx as i8) as isize;
         let line_idx = line_idx as isize;
-        0x8800 + (tile_idx * 8 + line_idx) * 2 - 0x8000
+        0x9000 + (tile_idx * 8 + line_idx) * 2 - 0x8000
     } as usize;
 
     assert!(line_idx <= 7);
@@ -340,9 +340,16 @@ pub fn render_scanline(vm : &mut Vm) {
     // Compute the adresse of the current line of pixels to render
     let out_addr = (vm.gpu.line as isize) * (SCREEN_WIDTH as isize) * 3;
 
+    //
     // BACKGROUND RENDERING
-    // Return a list of pixels in the current line
-    let background_pixels = render_background_line(out_addr, vm);
+    //
+
+    // Return a list of pixels in the current background line
+    let background_pixels = if (vm.gpu.lcdc.background_display) {
+        render_background_line(out_addr, vm)
+    } else {
+        vec![0 ; SCREEN_WIDTH] // Return trensparency if nothing was draw
+    };
 
     //
     // SPRITES RENDERING
@@ -351,9 +358,10 @@ pub fn render_scanline(vm : &mut Vm) {
     let lcdc = vm.gpu.lcdc;
     let vram = &vm.mmu.vram;
 
-    // TODO use lcdc sprite_display, background display
+    // TODO use lcdc sprite_display
     // For each sprite of the table
-    // TODO : Sort sprites by X !
+    // TODO : Sort sprites by X and low addr !
+    //        Then keep only the first 10.
     for i in 0..40 {
         let sprite = vm.gpu.sprites[i];
         let line = vm.gpu.line as isize;
