@@ -168,14 +168,14 @@ pub fn ww(addr : u16, value : u16, vm : &mut Vm) {
 /// in GPU, used for sprite rendering.
 pub fn update_sprite(index : usize, value : u8, vm : &mut Vm) {
     match index & 0x03 {
-        0 => (*vm.gpu.sprites)[index].y = value,
-        1 => (*vm.gpu.sprites)[index].x = value,
-        2 => (*vm.gpu.sprites)[index].tile_idx = value,
+        0 => (*vm.gpu.sprites)[index / 4].y = (value as isize) - 16,
+        1 => (*vm.gpu.sprites)[index / 4].x = (value as isize) - 8,
+        2 => (*vm.gpu.sprites)[index / 4].tile_idx = value,
         3 => {
-            (*vm.gpu.sprites)[index].priority = (value & 0x80) != 0;
-            (*vm.gpu.sprites)[index].y_flip   = (value & 0x40) != 0;
-            (*vm.gpu.sprites)[index].x_flip   = (value & 0x20) != 0;
-            (*vm.gpu.sprites)[index].palette  = (value & 0x10) != 0;
+            (*vm.gpu.sprites)[index / 4].priority = (value & 0x80) == 0;
+            (*vm.gpu.sprites)[index / 4].y_flip   = (value & 0x40) == 0;
+            (*vm.gpu.sprites)[index / 4].x_flip   = (value & 0x20) == 0;
+            (*vm.gpu.sprites)[index / 4].palette  = (value & 0x10) != 0;
         },
         // Impossible because of & 0x03:
         _ => return,

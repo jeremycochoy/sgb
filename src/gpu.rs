@@ -19,6 +19,10 @@ pub struct Gpu {
     pub scy             : u8,
     /// Background Palette
     pub bg_palette      : u8,
+    /// Object Palette 0
+    pub obj_palette_0   : u8,
+    /// Object Palette 1
+    pub obj_palette_1   : u8,
     /// LCDC register
     pub lcdc            : LCDC,
     /// Memory used for rendering the current screen
@@ -38,7 +42,9 @@ impl Default for Gpu {
             line        : 0,
             scx         : 0,
             scy         : 0,
-            bg_palette  : 0, // TODO
+            bg_palette  : 0xFC, // TODO : Check initial values when booting without rom
+            obj_palette_0 : 0xFF,
+            obj_palette_1 : 0xFF,
             lcdc        : u8_to_lcdc(0x91),
             rendering_memory    : white_memory(0..144*160*3),
             sprites     : Box::new([Default::default(); 40]),
@@ -135,26 +141,40 @@ pub fn u8_to_lcdc(value : u8) -> LCDC {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Default, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Sprite {
     /// Y-coordinate of top-left corner of the sprite
     /// (Value stored is Y minus 16)
-    pub y               : u8,
+    pub y               : isize,
     /// X-coordinate of top-left corner of the sprite
     /// (Value stored is X minus 8)
-    pub x               : u8,
+    pub x               : isize,
     /// Index of the tile in the current tileset
     pub tile_idx        : u8,
-    /// Display above background (0) or below (1)
+    /// Display above background (1) or below (0)
     /// The colour 0 (befor application of the bg_palette)
     /// of the background is replaced by the sprite's pixel.
     pub priority        : bool,
-    /// Horizontal flip of the sprite (0:normal, 1:flipped)
+    /// Horizontal flip of the sprite (1:normal, 0:flipped)
     pub y_flip          : bool,
-    /// Vertical flip of the sprite (0:normal, 1:flipped)
+    /// Vertical flip of the sprite (1:normal, 0:flipped)
     pub x_flip          : bool,
     /// Palette selector (palette #0 or palette #1)
     pub palette         : bool,
+}
+
+impl Default for Sprite {
+    fn default() -> Sprite {
+        Sprite {
+            y           : -16,
+            x           : -8,
+            tile_idx    : 0,
+            priority    : false,
+            y_flip      : false,
+            x_flip      : false,
+            palette     : false,
+        }
+    }
 }
 
 /// Update the state of the GPU (HorizontalBlank,
@@ -235,68 +255,147 @@ pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_id
 
 /// Load tile map line
 ///
-/// The coordinates `x` and `y` should be the location of the
-/// first tile in the 32x32 tile map. The tile map (0 or 1) is
+/// The coordinate `y` should be the number of the line to extract
+/// from the 32x32 tile map. The tile map (0 or 1) is
 /// selected from `lcdc`'s flag `bg_tile_map`.
 ///
-/// The function return a slice of `(SCREEN_WIDTH/8 + 1)` tile indexes.
+/// The function return a slice of 32 tile indexes.
 /// The slice point directly to the mmu's vram.
 ///
 /// The slice's length is one more tile that can be displayed on a line.
 /// This allow to display only a part of the first and last tile (wen scx and
 /// scy are not multiples of 8).
-pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, x : u16, y : u16) -> &'a [u8] {
-    let x = x as usize;
+pub fn load_tile_map_line<'a>(gpu : &Gpu, vram : &'a Vec<u8>, y : u16) -> &'a [u8] {
     let y = y as usize;
     let addr = if gpu.lcdc.bg_tile_map {0x9C00} else {0x9800};
 
     // Compute a slice of w+1 values on the vram
     // The number of tiles in one line is 32.
-    let addr_cell = addr + x + y * 32 - 0x8000;
+    let addr_cell = addr + y * 32 - 0x8000;
     return &vram[addr_cell..(addr_cell + 32 + 1)];
 }
 
-/// Render the current line of pixel on the rendering_memory
-pub fn render_scanline(vm : &mut Vm) {
+
+/// Render the background on the screen
+///
+/// First argument is the address where begin the line of pixel
+/// of the rendering buffer.
+pub fn render_background_line(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
     // Compute the coordinates of the upper left corner of the line
     let x = vm.gpu.scx as u16;
     let y = (vm.gpu.scy as u16) + (vm.gpu.line as u16);
 
-    // Compute the line of tiles
-    let map_x = x / 8;
-    let map_y = y / 8;
-    let tile_line = load_tile_map_line(&vm.gpu, &vm.mmu.vram, map_x, map_y);
+    // Compute the vertical wrapping of the line
+    let y = y % 256;
 
-    // Compute the background's line of pixels
-    let mut pixel_list : Vec<u8> = Vec::with_capacity(SCREEN_WIDTH + 2);
+    // Alias for easy manipulation
     let vram = &vm.mmu.vram;
     let lcdc = vm.gpu.lcdc;
     let bg_palette = vm.gpu.bg_palette;
+
+    // Compute the line of tiles
+    let map_y = y / 8;
+    let tile_line = load_tile_map_line(&vm.gpu, vram, map_y);
+
+    // Compute the background's line of pixels
+    // and update the rendering memory
+    let mut bg_pixel_list : Vec<u8> = Vec::with_capacity(SCREEN_WIDTH + 2);
+    let mut out_idx = -((x as isize) % 8);
+    let mut map_x = x / 8;
     for tile_index in tile_line {
-        let list_of_pixels = get_tile_pixels_line(lcdc, vram, *tile_index, y % 8);
-        for pixel in list_of_pixels {
-            // Store the pixel
-            pixel_list.push(pixel);
+        // Skip the first non-displayed tiles
+        if map_x > 0 {
+            map_x -= 1;
+            continue;
+        }
+        for pixel in get_tile_pixels_line(lcdc, vram, *tile_index, y % 8) {
+            // If the pixel is outside of the screen, skip it
+            if out_idx < 0 || out_idx >= (SCREEN_WIDTH as isize) {
+                out_idx += 1;
+                continue;
+            }
+
+            let addr = (out_addr + out_idx * 3) as usize;
+
+            // Store the pixel for sprite rendering
+            bg_pixel_list.push(pixel);
+
+            // Compute the color of the pixel using the background palette
+            let colored_pixel = compute_u8_from_palette(bg_palette, pixel);
+            let color = u8_to_color(colored_pixel);
+            let (r, g, b) = color_to_rgb(color);
+
+            // Store the color into the rendering memory
+            vm.gpu.rendering_memory[addr] = r;
+            vm.gpu.rendering_memory[addr + 1] = g;
+            vm.gpu.rendering_memory[addr + 2] = b;
+
+            out_idx += 1;
         }
     }
 
-    // Update the memory with the line of pixels
-    let out_addr = (vm.gpu.line as isize) * 160 * 3;
-    let mut out_idx = -((x as isize) % 8);
-    for pixel in pixel_list {
-        // Compute the color of the pixel using the background palette
-        let colored_pixel = compute_u8_from_palette(bg_palette, pixel);
-        let color = u8_to_color(colored_pixel);
-        let (r, g, b) = color_to_rgb(color);
+    return bg_pixel_list;
+}
 
-        // Store the color into the rendering memory
-        let addr = (out_addr + out_idx * 3) as usize;
-        if out_idx >= 0 && out_idx < (SCREEN_WIDTH as isize) {
+/// Render the current line of pixel on the rendering_memory
+pub fn render_scanline(vm : &mut Vm) {
+    // Compute the adresse of the current line of pixels to render
+    let out_addr = (vm.gpu.line as isize) * (SCREEN_WIDTH as isize) * 3;
+
+    // BACKGROUND RENDERING
+    // Return a list of pixels in the current line
+    let background_pixels = render_background_line(out_addr, vm);
+
+    //
+    // SPRITES RENDERING
+    //
+
+    let lcdc = vm.gpu.lcdc;
+    let vram = &vm.mmu.vram;
+
+    // TODO use lcdc sprite_display, background display
+    // For each sprite of the table
+    // TODO : Sort sprites by X !
+    for i in 0..40 {
+        let sprite = vm.gpu.sprites[i];
+        let line = vm.gpu.line as isize;
+        // If the current line do not intersect the sprite, continue
+        if line < sprite.y || line >= sprite.y + 8 { continue; }
+
+        // Select the sprite palette
+        let palette = if sprite.palette {
+            vm.gpu.obj_palette_1
+        } else {
+            vm.gpu.obj_palette_0
+        };
+
+        // Get the line of pixels
+        let pixels = get_tile_pixels_line(lcdc, vram, sprite.tile_idx, if sprite.y_flip {
+            7 - (line - sprite.y)
+        } else {
+            line - sprite.y
+        } as u16);
+
+        // Compute the adresse of the pixel line to render
+        for i in 0..8 {
+            let x = sprite.x as usize + i;
+
+            // Check if the pixel is still in the screen
+            if x < 0 {continue};
+            if x > SCREEN_WIDTH {continue};
+            // Check if the sprite don't have the priority and background
+            // isn't transparent, continue.
+            if !sprite.priority && background_pixels[x] != 0 {continue};
+
+            let colored_pixel = compute_u8_from_palette(palette, pixels[i]);
+            let color = u8_to_color(colored_pixel);
+            let (r, g, b) = color_to_rgb(color);
+
+            let addr = (out_addr as usize) + x * 3;
             vm.gpu.rendering_memory[addr] = r;
             vm.gpu.rendering_memory[addr + 1] = g;
             vm.gpu.rendering_memory[addr + 2] = b;
         }
-        out_idx += 1;
     }
 }
 

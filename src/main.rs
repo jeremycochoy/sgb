@@ -63,7 +63,7 @@ pub fn main_perf() {
     }
 }
 
-pub fn main() { main_perf(); }
+pub fn main() { main_shell(); }
 
 pub fn main_shell() {
     // Initialise SDL2
