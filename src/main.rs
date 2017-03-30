@@ -58,7 +58,7 @@ pub fn main_perf() {
     }
 
     //DEBUG
-    while(vm.cpu.clock.t <= 4190000 * 30) {
+    while vm.cpu.clock.t <= 4190000 * 30 {
         execute_one_instruction(&mut vm);
     }
 }
@@ -163,16 +163,16 @@ pub fn main_shell() {
         }
 
         // Run some instructions
-        for i in 0..100 {
+        for _ in 0..200 {
             execute_one_instruction(&mut vm);
         }
 
         // Render screen if we are during vblank period
         // (we don't want to render too often because it would slow down
         // the whole emulator)
-        if (vm.gpu.mode == GpuMode::HorizontalBlank) {
+        if vm.gpu.mode == GpuMode::HorizontalBlank {
             render_screen(&mut vm, &mut renderer, &mut texture);
-            while (vm.gpu.mode == GpuMode::HorizontalBlank) {
+            while vm.gpu.mode == GpuMode::HorizontalBlank {
                 execute_one_instruction(&mut vm);
             }
         }

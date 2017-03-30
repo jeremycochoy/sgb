@@ -1,6 +1,5 @@
 use tools::*;
 use vm::*;
-use cpu::*;
 
 const SCREEN_WIDTH  : usize = 160;
 const SCREEN_HEIGHT : usize = 144;
@@ -372,18 +371,24 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
             line - sprite.y
         } as u16);
 
-        // TODO: Horiwontal flip
-
-        // Compute the adresse of the pixel line to render
         for i in 0..8 {
-            let x = sprite.x as usize + i;
+            let x = sprite.x + if sprite.x_flip {
+                7 - i
+            } else {
+                i
+            } as isize;
 
             // Check if the pixel is still in the screen
             if x < 0 {continue};
-            if x > SCREEN_WIDTH {continue};
+            if x > SCREEN_WIDTH as isize {continue};
+
+            let x = x as usize;
+
             // Check if the sprite don't have the priority and background
             // isn't transparent, continue.
             if !sprite.priority && background_pixels[x] != 0 {continue};
+            // If the sprite is transparent, also continue.
+            if pixels[i] == 0 {continue};
 
             let colored_pixel = compute_u8_from_palette(palette, pixels[i]);
             let color = u8_to_color(colored_pixel);

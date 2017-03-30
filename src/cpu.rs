@@ -292,7 +292,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     }
 
     //print!("0x{:04x}:", pc![vm]);
-    let old_pc = pc![vm];
+    //let old_pc = pc![vm];
 
     // Run the instruction
     let opcode = read_program_byte(vm);
@@ -312,7 +312,8 @@ pub fn execute_one_instruction(vm : &mut Vm) {
              vm.gpu.line,
     );*/
 
-    let mut clock = (fct)(vm);
+    // Run opcode
+    let clock = (fct)(vm);
 
     // Update CPU's clock and timers
     update_cpu_clock(clock, vm);
@@ -2158,7 +2159,6 @@ pub fn i_rlchlm(vm : &mut Vm) -> Clock {
 
 /// Implementation of RRC
 pub fn i_rrc_imp(value : u8, vm : &mut Vm) -> u8 {
-    let carry = flag![vm ; Flag::C] as u8;
     let result = (value >> 1) | (value << 7);
 
     reset_flags(vm);
