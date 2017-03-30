@@ -1,5 +1,6 @@
 use tools::*;
 use vm::*;
+use cpu::*;
 
 const SCREEN_WIDTH  : usize = 160;
 const SCREEN_HEIGHT : usize = 144;
@@ -155,9 +156,9 @@ pub struct Sprite {
     /// The colour 0 (befor application of the bg_palette)
     /// of the background is replaced by the sprite's pixel.
     pub priority        : bool,
-    /// Horizontal flip of the sprite (1:normal, 0:flipped)
+    /// Horizontal flip of the sprite (0:normal, 1:flipped)
     pub y_flip          : bool,
-    /// Vertical flip of the sprite (1:normal, 0:flipped)
+    /// Vertical flip of the sprite (0:normal, 1:flipped)
     pub x_flip          : bool,
     /// Palette selector (palette #0 or palette #1)
     pub palette         : bool,
@@ -191,6 +192,8 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
             // If it's the last line of the screen
             if vm.gpu.line == 143 {
                 vm.gpu.mode = GpuMode::VerticalBlank;
+                // Activate vertical blank flag in ifr register
+                vm.mmu.ifr.vblank = true;
             }
             else {
                 vm.gpu.mode = GpuMode::ScanlineOAM;
@@ -207,6 +210,7 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
             render_scanline(vm);
         },
         GpuMode::VerticalBlank if vm.gpu.clock >= 456 => {
+            vm.gpu.clock -= 456;
             vm.gpu.line += 1;
             // After "10 lines" of wait, go back to scanline
             if vm.gpu.line == 153 {
@@ -368,6 +372,8 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
             line - sprite.y
         } as u16);
 
+        // TODO: Horiwontal flip
+
         // Compute the adresse of the pixel line to render
         for i in 0..8 {
             let x = sprite.x as usize + i;
@@ -402,7 +408,7 @@ pub fn render_scanline(vm : &mut Vm) {
     //
 
     // Return a list of pixels in the current background line
-    let background_pixels = if (lcdc.background_display) {
+    let background_pixels = if lcdc.background_display {
         render_background(out_addr, vm)
     } else {
         vec![0 ; SCREEN_WIDTH] // Return trensparency if nothing was draw
@@ -445,8 +451,8 @@ pub fn u8_to_color(value : u8) -> GreyScale {
 pub fn color_to_rgb(color : GreyScale) -> (u8, u8, u8) {
     match color {
         GreyScale::WHITE        => (0xFF, 0xFF, 0xFF),
-        GreyScale::LIGHTGREY    => (0xC0, 0xC0, 0xC0),
-        GreyScale::DARKGREY     => (0x60, 0x60, 0x60),
+        GreyScale::LIGHTGREY    => (0xDD, 0xDD, 0xDD),
+        GreyScale::DARKGREY     => (0xAA, 0xAA, 0xAA),
         GreyScale::BLACK        => (0x00, 0x00, 0x00),
     }
 }

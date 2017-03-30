@@ -201,6 +201,7 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     }
 
     //print!("0x{:04x}:", pc![vm]);
+    let old_pc = pc![vm];
 
     // Run the instruction
     let opcode = read_program_byte(vm);
@@ -210,15 +211,24 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     };
 
     // Debug :
-    /*println!("{}\tSP:{:02X} AF{:02X}{:02X} BC{:02X}{:02X} DE{:02X}{:02X} HL{:02X}{:02X}",
+/*    println!(":{:04X}|{}\tSP:{:02X} AF:{:02X}{:02X} BC:{:02X}{:02X} DE:{:02X}{:02X} HL:{:02X}{:02X} LY:{:02X}",
+             old_pc,
              name, sp![vm],
              reg![vm ; Register::A], reg![vm ; Register::F],
              reg![vm ; Register::B], reg![vm ; Register::C],
              reg![vm ; Register::D], reg![vm ; Register::E],
-             reg![vm ; Register::H], reg![vm ; Register::L]
+             reg![vm ; Register::H], reg![vm ; Register::L],
+             vm.gpu.line,
     );*/
 
-    let clock = (fct)(vm);
+    let mut clock = (fct)(vm);
+
+    // Handle interupts
+    match vm.cpu.interrupt {
+        InterruptState::IDisableNextInst | InterruptState::IEnabled =>
+            handle_interrupts(vm, &mut clock),
+        _ => ()
+    }
 
     // Update CPU's clock
     vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
@@ -227,13 +237,25 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     // Update the interrupt state
     vm.cpu.interrupt = match vm.cpu.interrupt {
         InterruptState::IEnableNextInst =>  InterruptState::IEnabled,
-        InterruptState::IDisableNextInst => InterruptState::IDisableNextInst,
+        InterruptState::IDisableNextInst => InterruptState::IDisabled,
         _ => vm.cpu.interrupt,
     };
 
 
     // Update GPU's mode (Clock, Scanline, VBlank, HBlank, ...)
     gpu::update_gpu_mode(vm, clock.t);
+}
+
+pub fn handle_interrupts(vm : &mut Vm, clock : &mut Clock) {
+    // Handle vblank
+    if vm.mmu.ier.vblank && vm.mmu.ifr.vblank {
+        vm.mmu.ifr.vblank = false;
+        // TODO : Add emi register controled by InterruptState value
+        vm.cpu.interrupt = InterruptState::IDisabled;
+        let clk = i_rst(vm, 0x40);
+        clock.m = clock.m.wrapping_add(clk.m);
+        clock.t = clock.t.wrapping_add(clk.t);
+    }
 }
 
 /// Simple macro for writing dispatch more easily
@@ -264,6 +286,7 @@ pub fn dispatch(opcode : u8) -> Instruction {
         0x0F => mk_inst![vm> "RRCA",    i_rrca(vm)],
 
         //0x10 => STOP
+        0x10 => mk_inst![vm> "STOP",    i_nop(vm)],
         0x11 => mk_inst![vm> "LDDEd16", i_ldr16d16(vm, Register::D, Register::E)],
         0x12 => mk_inst![vm> "LDDEmA",  i_ldr16mr(vm, Register::D, Register::E, Register::A)],
         0x13 => mk_inst![vm> "INCDE",   i_incr16(vm, Register::D, Register::E)],

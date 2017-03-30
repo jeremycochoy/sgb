@@ -21,7 +21,41 @@ use tools::*;
 use vm::*;
 use io;
 
-#[derive(PartialEq, Eq, Debug)]
+/// Describe the divers interupt bits in the
+/// interupt (e/f) Register.
+#[derive(PartialEq, Eq, Clone, Copy, Default, Debug)]
+pub struct InterruptFlags {
+    /// bit 0 : Vblank on/off
+    pub vblank   : bool,
+    /// bit 1 : LCD Stat on/off
+    pub lcd_stat : bool,
+    /// bit 2 : Timer on/off
+    pub timer    : bool,
+    /// bit 3 : Serial on/off
+    pub serial   : bool,
+    /// bit 4 : Joypad on/off
+    pub joypad   : bool,
+}
+
+pub fn interrupt_to_u8(ir : InterruptFlags) -> u8 {
+    return (ir.vblank as u8) << 0
+        | (ir.lcd_stat as u8) << 1
+        | (ir.timer as u8) << 2
+        | (ir.serial as u8) << 3
+        | (ir.joypad as u8) << 4;
+}
+
+pub fn u8_to_interrupt(byte : u8) -> InterruptFlags {
+    return InterruptFlags {
+        vblank   : (byte & 0x01) != 0,
+        lcd_stat : (byte & 0x02) != 0,
+        timer    : (byte & 0x04) != 0,
+        serial   : (byte & 0x08) != 0,
+        joypad   : (byte & 0x10) != 0,
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
 /// The MMU (memory)
 pub struct Mmu {
     /// GB Bios
@@ -43,7 +77,9 @@ pub struct Mmu {
     /// FF80-FFFE    High RAM (HRAM)
     pub hram  : Vec<u8>,
     /// FFFF         Interrupt Enable Register
-    pub ier   : u8,
+    pub ier   : InterruptFlags,
+    /// FF0F         Interrupt Flag Register
+    pub ifr   : InterruptFlags,
     /// When true, reading below 0x100 access the bios.
     /// Once the booting sequence is finished, the value is
     /// turned to false. Then, rading below 0x100 read bytes from the rom field.
@@ -81,10 +117,11 @@ impl Default for Mmu {
         swram : empty_memory(0xD000..0xE000),
         oam   : empty_memory(0xFE00..0xFEA0),
         hram  : empty_memory(0xFF80..0xFFFF),
-        ier   : 0x00,
+        ier   : Default::default(),
+        ifr   : Default::default(),
         bios_enabled : true,
 
-        joyp  : 0x00,
+        joyp  : 0x3F,
     }
     }
 }
@@ -110,7 +147,6 @@ pub fn rb(addr : u16, vm : &Vm) -> u8 {
         0xF000...0xFDFF => mmu.swram[addr - 0xF000],
         0xFE00...0xFE9F => mmu.oam[addr - 0xFE00],
         0xFF80...0xFFFE => mmu.hram[addr - 0xFF80],
-        0xFFFF => mmu.ier,
         // Otherwise, it should be an IO
         _ => io::dispatch_io_read(addr, vm),
     }
@@ -143,7 +179,6 @@ pub fn wb(addr : u16, value : u8, vm : &mut Vm) {
             update_sprite(index, value, vm);
         },
         0xFF80...0xFFFE => vm.mmu.hram[addr - 0xFF80] = value,
-        0xFFFF => vm.mmu.ier = value,
         // Otherwise, it should be an IO
         _ => io::dispatch_io_write(addr, value, vm),
     }
@@ -173,8 +208,8 @@ pub fn update_sprite(index : usize, value : u8, vm : &mut Vm) {
         2 => (*vm.gpu.sprites)[index / 4].tile_idx = value,
         3 => {
             (*vm.gpu.sprites)[index / 4].priority = (value & 0x80) == 0;
-            (*vm.gpu.sprites)[index / 4].y_flip   = (value & 0x40) == 0;
-            (*vm.gpu.sprites)[index / 4].x_flip   = (value & 0x20) == 0;
+            (*vm.gpu.sprites)[index / 4].y_flip   = (value & 0x40) != 0;
+            (*vm.gpu.sprites)[index / 4].x_flip   = (value & 0x20) != 0;
             (*vm.gpu.sprites)[index / 4].palette  = (value & 0x10) != 0;
         },
         // Impossible because of & 0x03:
