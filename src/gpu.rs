@@ -226,10 +226,13 @@ pub fn update_gpu_mode(vm : &mut Vm, cycles : u64) {
 /// The index of the tile is given by `tile_idx`.
 /// Coordinates `line_idx` is the index of the line,
 /// from 0 to 7.
-pub fn get_tile_pixels_line(lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u16) -> Vec<u8> {
+///
+/// If the first argument is set to true, then the tile
+/// is loaded from 0x8000 tilemap.
+pub fn get_tile_pixels_line(is_sprite : bool, lcdc : LCDC, vram : &Vec<u8>, tile_idx : u8, line_idx : u16) -> Vec<u8> {
     // Each tile contain 8 line. Each line is stored in 2 bytes.
     // Therefor each tile contain 8*2 bytes.
-    let addr = if lcdc.tile_set {
+    let addr = if is_sprite || lcdc.tile_set {
         let tile_idx = tile_idx as isize;
         let line_idx = line_idx as isize;
         0x8000 + (tile_idx * 8 + line_idx) * 2 - 0x8000
@@ -308,7 +311,7 @@ pub fn render_background(out_addr : isize, vm : &mut Vm) -> Vec<u8> {
     for tile_number in map_x..(map_x + SCREEN_WIDTH / 8 + 2) {
 
         // For each pixel in the tile (use % 32 for horiwontal wrapping)
-        for pixel in get_tile_pixels_line(lcdc, vram, tile_line[tile_number % 32], y % 8) {
+        for pixel in get_tile_pixels_line(false, lcdc, vram, tile_line[tile_number % 32], y % 8) {
             // If the pixel is outside of the screen, skip it
             if out_idx < 0 || out_idx >= (SCREEN_WIDTH as isize) {
                 out_idx += 1;
@@ -365,13 +368,14 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
         };
 
         // Get the line of pixels
-        let pixels = get_tile_pixels_line(lcdc, vram, sprite.tile_idx, if sprite.y_flip {
+        let pixels = get_tile_pixels_line(true, lcdc, vram, sprite.tile_idx, if sprite.y_flip {
             7 - (line - sprite.y)
         } else {
             line - sprite.y
         } as u16);
 
         for i in 0..8 {
+            // Horizontal flip
             let x = sprite.x + if sprite.x_flip {
                 7 - i
             } else {
@@ -380,7 +384,7 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
 
             // Check if the pixel is still in the screen
             if x < 0 {continue};
-            if x > SCREEN_WIDTH as isize {continue};
+            if x >= SCREEN_WIDTH as isize {continue};
 
             let x = x as usize;
 
