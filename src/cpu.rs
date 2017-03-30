@@ -201,8 +201,12 @@ impl Default for InterruptState {
 
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct Cpu {
+    /// CPU's registers
     pub registers : Registers,
+    /// Time in cycle enlapsed since the first instruction
     pub clock : Clock,
+    /// Act as an enhanced IME register
+    /// IME = Interupt Master Enable
     pub interrupt : InterruptState,
 
     /// Timer implementation
@@ -340,9 +344,28 @@ pub fn handle_interrupts(vm : &mut Vm) -> Clock {
     // Handle vblank
     if vm.mmu.ier.vblank && vm.mmu.ifr.vblank {
         vm.mmu.ifr.vblank = false;
-        // TODO : Add emi register controled by InterruptState value
         vm.cpu.interrupt = InterruptState::IDisabled;
         return i_rst(vm, 0x40);
+    }
+    if vm.mmu.ier.lcd_stat && vm.mmu.ifr.lcd_stat {
+        vm.mmu.ifr.lcd_stat = false;
+        vm.cpu.interrupt = InterruptState::IDisabled;
+        return i_rst(vm, 0x48);
+    }
+    if vm.mmu.ier.timer && vm.mmu.ifr.timer {
+        vm.mmu.ifr.timer = false;
+        vm.cpu.interrupt = InterruptState::IDisabled;
+        return i_rst(vm, 0x50);
+    }
+    if vm.mmu.ier.serial && vm.mmu.ifr.serial {
+        vm.mmu.ifr.serial = false;
+        vm.cpu.interrupt = InterruptState::IDisabled;
+        return i_rst(vm, 0x58);
+    }
+    if vm.mmu.ier.joypad && vm.mmu.ifr.joypad {
+        vm.mmu.ifr.joypad = false;
+        vm.cpu.interrupt = InterruptState::IDisabled;
+        return i_rst(vm, 0x60);
     }
     return Clock { m:0, t:0 };
 }

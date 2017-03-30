@@ -41,7 +41,7 @@ pub fn dispatch_io_write(addr : usize, value :u8, vm : &mut Vm) {
         0xFF40 => vm.gpu.lcdc = u8_to_lcdc(value),
         0xFF42 => vm.gpu.scy = value,
         0xFF43 => vm.gpu.scx = value,
-        0xFF44 => vm.gpu.line = value,
+        0xFF44 => vm.gpu.line = 0,
         0xFF46 => dma(vm, value),
         0xFF47 => vm.gpu.bg_palette = value,
         0xFF48 => vm.gpu.obj_palette_0 = value,
