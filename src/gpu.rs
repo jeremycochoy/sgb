@@ -357,8 +357,13 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
     for i in 0..40 {
         let sprite = vm.gpu.sprites[i];
         let line = vm.gpu.line as isize;
+
         // If the current line do not intersect the sprite, continue
-        if line < sprite.y || line >= sprite.y + 8 { continue; }
+        if lcdc.sprite_size {
+            if line < sprite.y || line >= sprite.y + 16 {continue;}
+        } else {
+            if line < sprite.y || line >= sprite.y + 8 {continue;}
+        }
 
         // Select the sprite palette
         let palette = if sprite.palette {
@@ -367,12 +372,26 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
             vm.gpu.obj_palette_0
         };
 
-        // Get the line of pixels
-        let pixels = get_tile_pixels_line(true, lcdc, vram, sprite.tile_idx, if sprite.y_flip {
-            7 - (line - sprite.y)
+        // Get the line of the sprite we want to display
+        let mut y =  if sprite.y_flip {
+            if lcdc.sprite_size {
+                15 - (line - sprite.y)
+            } else {
+                7 - (line - sprite.y)
+            }
         } else {
             line - sprite.y
-        } as u16);
+        } as u16;
+
+        // Select the right tile index, depending of sprite mode
+        let tile_idx = if lcdc.sprite_size && y >= 8 {
+                y -= 8;
+                sprite.tile_idx + 1
+        } else {
+            sprite.tile_idx
+        };
+
+        let pixels = get_tile_pixels_line(true, lcdc, vram, tile_idx, y);
 
         for i in 0..8 {
             // Horizontal flip
@@ -391,8 +410,8 @@ pub fn render_sprite(out_addr : isize, background_pixels : Vec<u8>, vm : &mut Vm
             // Check if the sprite don't have the priority and background
             // isn't transparent, continue.
             if !sprite.priority && background_pixels[x] != 0 {continue};
-            // If the sprite is transparent, also continue.
-            if pixels[i] == 0 {continue};
+            // If the sprite is 8x16 and transparent, also continue.
+            if lcdc.sprite_size && pixels[i] == 0 {continue};
 
             let colored_pixel = compute_u8_from_palette(palette, pixels[i]);
             let color = u8_to_color(colored_pixel);
