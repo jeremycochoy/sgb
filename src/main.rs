@@ -162,12 +162,19 @@ pub fn main_shell() {
             }
         }
 
-        // Run 100 instructions
-        for _ in 0..300 {
+        // Run some instructions
+        for i in 0..100 {
             execute_one_instruction(&mut vm);
         }
 
-        // Render screen
-        render_screen(&mut vm, &mut renderer, &mut texture);
+        // Render screen if we are during vblank period
+        // (we don't want to render too often because it would slow down
+        // the whole emulator)
+        if (vm.gpu.mode == GpuMode::HorizontalBlank) {
+            render_screen(&mut vm, &mut renderer, &mut texture);
+            while (vm.gpu.mode == GpuMode::HorizontalBlank) {
+                execute_one_instruction(&mut vm);
+            }
+        }
     }
 }
