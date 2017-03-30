@@ -14,6 +14,9 @@ pub fn dispatch_io_read(addr : usize, vm : &Vm) -> u8 {
     // TODO Check if io are allowed
     // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
+        0xFF04 => vm.cpu.timers.div,
+        0xFF05 => vm.cpu.timers.tima,
+        0xFF06 => vm.cpu.timers.tma,
         0xFF40 => lcdc_to_u8(vm.gpu.lcdc),
         0xFF42 => vm.gpu.scy,
         0xFF43 => vm.gpu.scx,
@@ -32,6 +35,9 @@ pub fn dispatch_io_write(addr : usize, value :u8, vm : &mut Vm) {
     // TODO Check if io are allowed
     // depending of the state of gpu.gpu_mode:GpuMode.
     match addr {
+        0xFF04 => vm.cpu.timers.div = 0,
+        0xFF05 => vm.cpu.timers.tima = value, // TODO: expected behavior = ?
+        0xFF06 => vm.cpu.timers.tma = value,
         0xFF40 => vm.gpu.lcdc = u8_to_lcdc(value),
         0xFF42 => vm.gpu.scy = value,
         0xFF43 => vm.gpu.scx = value,

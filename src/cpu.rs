@@ -154,6 +154,39 @@ pub struct Clock {
     pub t : u64,
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Default, Debug)]
+pub struct Timers {
+    /// DIV Divider Register : incremented each 4 cyles
+    pub div : u8,
+    /// TIMA Timer counter : timer incremented each n-cycles (see TAC)
+    pub tima : u8,
+    /// TMA Timer Modulo : reset value for TIMA when TIMA overflow.
+    pub tma : u8,
+    /// TAC Timer Control : timer control register. Settings for TIMA.
+    pub tac : TimerControl,
+
+    //// IMPLEMENTATION
+
+    /// This timer over each 4 cycles
+    pub imp_4c : u64,
+    /// This timer overflow each n-cycles (n is controled by tac)
+    pub imp_nc : u64,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Default, Debug)]
+pub struct TimerControl {
+    /// Input Clock Selector
+    /// 00 : 16 cycles  [  4096Hz]
+    /// 01 : 1 cycle    [262144Hz]
+    /// 10 : 8 cycles   [ 65536Hz]
+    /// 11 : 4 cycles   [ 16384Hz]
+    timer_mode : u8,
+    /// Timer Stop
+    /// 0 : Stop Timer
+    /// 1 : Start Timer
+    running : bool,
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum InterruptState {
     IEnabled,
@@ -168,9 +201,12 @@ impl Default for InterruptState {
 
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct Cpu {
-        pub registers : Registers,
-        pub clock : Clock,
-        pub interrupt : InterruptState,
+    pub registers : Registers,
+    pub clock : Clock,
+    pub interrupt : InterruptState,
+
+    /// Timer implementation
+    pub timers : Timers,
 }
 
 /// Read a byte from the memory pointed by PC, and increment PC
@@ -189,6 +225,57 @@ pub fn read_program_word(vm : &mut Vm) -> u16 {
 
 /// Store a CPU's instruction, that is a string describing the assembly instruction, and the *function pointer*
 pub struct Instruction(&'static str, Box<Fn(&mut Vm) -> Clock>);
+
+/// Add the values of clock into the cpu's clock
+pub fn update_cpu_clock(clock : Clock, vm : &mut Vm) {
+    vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
+    vm.cpu.clock.t = vm.cpu.clock.t.wrapping_add(clock.t);
+}
+
+/// Update timers with the enlapsed time clock
+pub fn update_timers(clock : Clock, vm : &mut Vm) {
+    let t = &mut vm.cpu.timers;
+    let ifr = &mut vm.mmu.ifr;
+
+    // Handle DIV timer
+    t.imp_4c += clock.t;
+    while t.imp_4c >= 4 {
+        t.imp_4c -= 4;
+        t.div = t.div.wrapping_add(1);
+    }
+
+    // Handle TIMA timer
+    if t.tac.running {
+        // Check the time step depending on mode
+        let diff = match t.tac.timer_mode {
+            0b00 => 16,
+            0b01 => 1,
+            0b10 => 8,
+            0b11 => 4,
+            _    => {
+                println!("Timer Mode equal to {} where value in [0,3] expected!",
+                t.tac.timer_mode);
+                16
+            },
+        };
+
+        t.imp_nc += clock.t;
+        // Take into account each time step
+        while t.imp_nc >= diff {
+            t.imp_nc -= diff;
+
+            // If the counter is about to overflow
+            if t.tima == 0xFF {
+                // Reset timer and set interrupt flag
+                t.tima = t.tma;
+                ifr.timer = true;
+            } else {
+                // Increment timer
+                t.tima = t.tima.wrapping_add(1);
+            }
+        }
+    }
+}
 
 /// Execute exactly one instruction by the CPU
 ///
@@ -223,16 +310,19 @@ pub fn execute_one_instruction(vm : &mut Vm) {
 
     let mut clock = (fct)(vm);
 
-    // Handle interupts
-    match vm.cpu.interrupt {
-        InterruptState::IDisableNextInst | InterruptState::IEnabled =>
-            handle_interrupts(vm, &mut clock),
-        _ => ()
-    }
+    // Update CPU's clock and timers
+    update_cpu_clock(clock, vm);
+    update_timers(clock, vm);
 
-    // Update CPU's clock
-    vm.cpu.clock.m = vm.cpu.clock.m.wrapping_add(clock.m);
-    vm.cpu.clock.t = vm.cpu.clock.t.wrapping_add(clock.t);
+    // Handle interupts
+    if vm.cpu.interrupt == InterruptState::IDisableNextInst
+        || vm.cpu.interrupt == InterruptState::IEnabled {
+        let clock = handle_interrupts(vm);
+
+        // Update CPU's clock and timers
+        update_cpu_clock(clock, vm);
+        update_timers(clock, vm);
+    }
 
     // Update the interrupt state
     vm.cpu.interrupt = match vm.cpu.interrupt {
@@ -246,16 +336,15 @@ pub fn execute_one_instruction(vm : &mut Vm) {
     gpu::update_gpu_mode(vm, clock.t);
 }
 
-pub fn handle_interrupts(vm : &mut Vm, clock : &mut Clock) {
+pub fn handle_interrupts(vm : &mut Vm) -> Clock {
     // Handle vblank
     if vm.mmu.ier.vblank && vm.mmu.ifr.vblank {
         vm.mmu.ifr.vblank = false;
         // TODO : Add emi register controled by InterruptState value
         vm.cpu.interrupt = InterruptState::IDisabled;
-        let clk = i_rst(vm, 0x40);
-        clock.m = clock.m.wrapping_add(clk.m);
-        clock.t = clock.t.wrapping_add(clk.t);
+        return i_rst(vm, 0x40);
     }
+    return Clock { m:0, t:0 };
 }
 
 /// Simple macro for writing dispatch more easily
