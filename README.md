@@ -15,7 +15,7 @@ The emulator is structured in different modules :
 * CPU : Emulate the instructions of a Z80 like microcontroler
 * IO  : Memory mapping of some registers and control (buttons, etc...)
 * VM  : All units glued together. Also give the functions for
-*       input / output.
+        input / output.
 * Tools : Different utilitary functions
 
 What does it do?
